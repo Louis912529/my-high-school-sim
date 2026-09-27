@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<title>莞中人生 · 高中三年模拟器</title>
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏛️</text></svg>">
+</head>
+<body>
+
+<!-- ================= 主菜单 / 玩法 ================= -->
+<div id="screen-menu" class="screen">
+  <div class="panel menu-panel">
+    <img src="logo.jpg.jpg" class="school-mark-img" alt="校徽">
+    <h1 class="brand-title">莞中人生</h1>
+    <p class="brand-subtitle">东莞市东莞中学 · 高中三年人生模拟器</p>
+    <div class="school-intro">
+      <p>创建于1902年，原名“东莞学堂”，1950年改名为东莞中学</p>
+      <p>校训：<b>思考人生 追求真理 报效祖国 服务社会</b><span class="divider">|</span>办学理念：<b>自主 和谐 共同发展</b></p>
+      <p>办学宗旨：<b>对每一位学生的终身发展负责</b></p>
+    </div>
+
+    <p class="label-green">选 择 游 戏 时 长</p>
+    <div class="mode-list" id="mode-list">
+      <button class="mode-card selected" data-mode="immersive" data-rounds="90">
+        <b>沉浸 <small>beta</small></b>
+        <span>选择更多，每段故事都不错过</span>
+        <em>90 轮</em>
+      </button>
+      <button class="mode-card" data-mode="standard" data-rounds="60">
+        <b>标准</b>
+        <span>不紧不慢度过三年</span>
+        <em>60 轮</em>
+      </button>
+      <button class="mode-card" data-mode="speed" data-rounds="30">
+        <b>速通</b>
+        <span>几分钟直达结局</span>
+        <em>30 轮</em>
+      </button>
+    </div>
+
+    <div class="info-block">
+      <p class="label-green">玩 法 说 明</p>
+      <ul class="stat-legend">
+        <li><i class="dot sleep"></i><span><b>睡眠</b>：80 以下疲惫，70 以下明显影响；60 以下可能休学 1 个月，50 以下可能休学 1 年。</span></li>
+        <li><i class="dot social"></i><span><b>社交</b>：人际关系与心情，太低会孤独。</span></li>
+        <li><i class="dot study"></i><span><b>学习</b>：决定期末排名与高考档位；高三同样属性排名更低，最终高考实际分数还要按难度额外扣分。</span></li>
+      </ul>
+      <p class="love-note">恋爱线：开学后会遇见一个人，好感度分「陌生 → 认识 → 朋友 → 暧昧 → 恋人」五档；社交月、闲聊、约会、节日都会推动好感，冷落则会降温。好感 90 且告白成功才算在一起。<b>恋爱剧情约占全部剧情的 1/3</b>，其余留给校园生活与学业。</p>
+      <p class="residency-note">住宿生有宿舍、宿管查手机、夜间游戏；走读生可带早餐和外卖。</p>
+      <p class="residency-note">女生学物理、男生学历史时，「学习优先」收益会降低；课堂和晚修可以玩手机，但年级主任与级长抓得很紧。</p>
+      <p class="residency-note diff-note">难度：<b>普通</b> 是默认强度，考试每 5 轮一次；<b>困难 </b> 是新增的更高难度模式——考试每 4 轮一次，属性收益更低，休学更容易，高三竞争扣分更狠，好感推进也更慢。</p>
+    </div>
+
+    <button id="btn-to-setup" class="grad-btn">开 始 莞 中 生 活</button>
+    <div class="menu-links">
+      <button id="btn-history" class="ghost-btn">历 史 战 绩</button>
+      <button id="btn-leaderboard" class="ghost-btn">🏆 全 校 排 行 榜</button>
+      <button id="btn-feed" class="ghost-btn">📢 全 校 动 态</button>
+    </div>
+    <p class="net-status" id="net-status">联机检测中…</p>
+    <p class="hardcore-warning">⚠ 硬核版：躺平会退步，硬卷会崩溃，睡眠过低会直接强制休学。开局可选「 困难 」再上一档。</p>
+
+    <div class="disclaimer">
+      <div class="disclaimer-title">免 责 声 明</div>
+      <p>本作是<b>玩家自制的校园模拟小游戏</b>与东莞市东莞中学<b>无隶属关系，亦非官方出品</b>；文中出现的校名、校训、校史仅作剧情背景，不含任何贬损或误导意图。</p>
+      <p>剧情、人物、事件、考试分数与排名<b>均为虚构</b>，与任何真实人物、真实事件无关，如有雷同纯属巧合。</p>
+      <p>游戏内的数值与结局<b>仅供娱乐</b>，不构成任何学业、升学或人生建议，请勿作为现实决策的参考。</p>
+      <p>「全校排行榜」与「全校动态」会<b>公开展示你填写的名字和成绩</b>，请勿填写真实姓名、学号、联系方式等隐私信息。若本作内容有冒犯或侵权之处，请联系作者删除。</p>
+      <p>该网页作者：留意 邮箱：3503390649@qq.com </p>
+      <p> 原作者：https://github.com/ye20080217-cmyk/xiangxian-life-sim </p>
+    </div>
+  </div>
+</div>
+
+<!-- ================= 开局设置：参考图的一页式表单 ================= -->
+<div id="screen-setup" class="screen hidden">
+  <div class="panel setup-panel">
+    <div class="setup-topline"><span>莞中人生</span><span>OPENING</span></div>
+    <h1>开启三年人生</h1>
+    <p class="eyebrow">把名字写下，选择你要过的高中生活</p>
+
+    <div class="field">
+      <label class="label-green" for="in-name">你 的 名 字</label>
+      <div class="name-row">
+        <input id="in-name" type="text" maxlength="12" placeholder="例：小明" autocomplete="off" enterkeyhint="done">
+        <button type="button" class="dice-btn" id="btn-random-name" aria-label="随机取一个名字" title="随机取一个名字">🎲</button>
+      </div>
+      <p class="field-hint" id="name-hint">打不出字也没关系：点 🎲 随机取名，或直接点下面的按钮开始（会自动给你取一个）。</p>
+    </div>
+
+    <p class="label-green">性 别</p>
+    <div class="opt-row" id="in-gender">
+      <button class="opt selected" data-v="男">男</button>
+      <button class="opt" data-v="女">女</button>
+    </div>
+
+    <p class="label-green">走读 / 住 宿</p>
+    <div class="opt-row residency-row" id="in-residency">
+      <button class="opt residency-opt selected" data-v="住宿生"><b>住宿生</b><small>宿舍剧情线</small></button>
+      <button class="opt residency-opt" data-v="走读生"><b>走读生</b><small>外卖 · 早餐剧情线</small></button>
+    </div>
+
+    <p class="label-green">开 局 天 赋 <small class="sub-label">（选一个）</small></p>
+    <div class="love-list talent-list" id="in-love">
+      <button class="love-card selected" data-v="学霸胚子">
+        <b>📚 学霸胚子</b>
+        <span>学习起步 +15，学得快</span>
+      </button>
+      <button class="love-card" data-v="社交达人">
+        <b>🎉 社交达人</b>
+        <span>人缘起步 +15，处处是朋友</span>
+      </button>
+      <button class="love-card" data-v="心态大师">
+        <b>😌 心态大师</b>
+        <span>体力起步 +15，觉睡得香</span>
+      </button>
+    </div>
+
+    <p class="label-green">班 级</p>
+    <div class="class-list class-inline" id="in-class">
+      <button class="class-card selected" data-v="镜堂班"><b>镜堂班</b><span>待定</span></button>
+      <button class="class-card" data-v="容庚班"><b>容庚班</b><span>待定</span></button>
+    </div>
+
+    <p class="label-green">难 度</p>
+    <div class="class-list class-inline" id="in-diff">
+      <button class="class-card selected" data-v="hard"><b>困 难 +1</b><span>默认强度</span></button>
+      <button class="class-card hell-card" data-v="hell"><b>炼 狱 +2</b><span>更高难度 · 自找苦吃</span></button>
+    </div>
+    <p class="hint-line" id="diff-note">普通：考试每 5 轮一次，资源取舍偏紧。</p>
+
+    <button class="grad-btn" id="btn-begin">🔨 开 启 三 年 人 生</button>
+    <button class="ghost-btn" id="btn-step1-back">返 回 主 菜 单</button>
+    <p class="setup-warning">⚠ 你的选择会影响睡眠、社交、学习、恋爱与高考结算。</p>
+  </div>
+</div>
+
+<!-- ================= 学期开场 ================= -->
+<div id="screen-semester" class="screen hidden">
+  <div class="panel semester-panel">
+    <div class="setup-topline"><span>莞中人生</span><span>SEMESTER</span></div>
+    <h1 id="sem-title">高一上学期</h1>
+    <p class="eyebrow" id="sem-sub">第 1 / 6 学期 · 9月 / 10月 / 11月 / 12月 / 1月</p>
+    <div class="story-box" id="sem-story"></div>
+    <div class="meta-row"><span>当前状态</span><b id="sem-status">健康 · 正常 · 良好</b></div>
+    <div class="meta-row"><span>校园安排</span><b id="sem-schedule"> 住宿生</b></div>
+    <div class="meta-row"><span>已获头衔</span><b id="sem-titles">0 个</b></div>
+    <button class="grad-btn" id="btn-sem-start">开 始 这 个 学 期</button>
+  </div>
+</div>
+
+<!-- ================= 高一下学期选科 ================= -->
+<div id="screen-track" class="screen hidden">
+  <div class="panel semester-panel track-choice-panel">
+    <div class="setup-topline"><span>莞中人生</span><span>TRACK</span></div>
+    <h1>高一下学期 · 3+1+2 选科</h1>
+    <p class="eyebrow">高一上学期结束，方向要自己填</p>
+    <div class="story-box" id="track-story">最后一门考试结束，班主任把选科表发了下来。「想清楚再填，交上去就不能改了。」</div>
+    <p class="label-green">选 择 你 的 方 向</p>
+    <div class="track-list" id="in-track">
+      <button class="track-card physics selected" data-v="物理"><b>物 理</b><span>物理类</span><span>公式、电路、受力分析</span></button>
+      <button class="track-card history" data-v="历史"><b>历 史</b><span>历史类</span><span>年代、事件、背到嗓子哑</span></button>
+    </div>
+    <p class="hint-line center">从高一下开始，选科会影响后续考试与三年结算。</p>
+    <p class="hint-line center" id="track-aptitude-note"></p>
+    <button class="grad-btn" id="btn-track-confirm">确 定 选 科</button>
+  </div>
+</div>
+
+<!-- ================= 游戏主界面 ================= -->
+<div id="screen-game" class="screen hidden">
+  <div class="hud">
+    <div class="hud-top">
+      <div class="hud-left">
+        <h2 id="t-title">高一上学期 · 9月上旬</h2>
+        <p class="hud-sub"><span id="t-round">第 1 / 90 次选择</span> · <span id="t-sem">高一上学期</span></p>
+      </div>
+      <div class="hud-right">
+        <span class="chip" id="t-love">单身</span>
+        <span class="chip" id="t-residency">住宿生</span>
+        <span class="chip" id="t-class-chip">平行班</span>
+      </div>
+    </div>
+    <div class="bars">
+      <div class="bar-row"><span class="bar-label">💪 体力</span><div class="bar track"><i id="bar-sleep" class="fill sleep" style="width:100%"></i></div><b id="val-sleep" class="num sleep-text">100</b><span class="status sleep-text" id="st-sleep">健康</span></div>
+      <div class="bar-row"><span class="bar-label">📖 学业</span><div class="bar track"><i id="bar-study" class="fill study" style="width:50%"></i></div><b id="val-study" class="num study-text">50</b><span class="status study-text" id="st-study">良好</span></div>
+      <div class="bar-row"><span class="bar-label">🤝 社交</span><div class="bar track"><i id="bar-social" class="fill social" style="width:50%"></i></div><b id="val-social" class="num social-text">50</b><span class="status social-text" id="st-social">正常</span></div>
+      <div class="bar-row"><span class="bar-label">💗 好感</span><div class="bar track"><i id="bar-aff" class="fill love" style="width:0%"></i></div><b id="val-aff" class="num love-text">—</b><span class="status love-text" id="st-aff">未遇见</span></div>
+    </div>
+    <div class="title-row"><span class="title-label">🏅 班级名次 / 头衔</span><div id="t-titles" class="title-chips"><span class="muted">还没有拿到任何头衔</span></div></div>
+  </div>
+
+  <main id="log" class="log">
+    <section id="action-area" class="action-area"></section>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-label">📢 校园动态</div>
+    <div id="journal" class="journal">
+      <div class="j-line placeholder-line">· 东莞中学三年，等待你的第一个选择…</div>
+    </div>
+    <div class="footer-btns">
+      <button id="btn-dex" class="mini-btn">📖 图鉴</button>
+      <button id="btn-game-leaderboard" class="mini-btn">🏆 排行榜</button>
+      <button id="btn-auto" class="mini-btn">⏩ 自动：关</button>
+    </div>
+  </footer>
+</div>
+
+<!-- ================= 学期成绩 / 弹窗 ================= -->
+<div id="modal-mask" class="modal-mask hidden"><div class="modal" id="modal-box"></div></div>
+
+<!-- ================= 结局 ================= -->
+<div id="screen-end" class="screen hidden">
+  <div class="panel end-panel">
+    <div class="setup-topline"><span>莞中人生</span><span>THE END</span></div>
+    <h1>高考放榜</h1>
+    <p class="eyebrow">高中三年，最后一张成绩单</p>
+    <div class="score-line"><span>高考总分</span><b id="end-score" class="score-num">0</b><span class="den">/ 750</span></div>
+    <p class="end-rank" id="end-rank">—</p>
+    <p class="label-green">学 业 评 价</p><h2 id="end-academic" class="grade-title academic">—</h2><div class="story-box" id="end-academic-desc">…</div>
+    <p class="label-green">恋 爱 评 价</p><h2 id="end-love-title" class="grade-title romance">—</h2><div class="story-box" id="end-love-desc">…</div>
+    <p class="label-green">游 玩 记 录</p><div class="record-list" id="end-records"></div>
+    <p class="label-green">最 终 属 性</p><div class="final-stats" id="end-stats"></div>
+    <p class="label-green">头 衔 一 览 <span id="end-title-count"></span></p><div class="end-titles" id="end-titles"></div>
+    <button class="grad-btn" id="btn-restart">重 新 开 始</button>
+  </div>
+</div>
+
+<script src="game.js"></script>
+</body>
+</html>

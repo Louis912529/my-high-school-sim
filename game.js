@@ -727,7 +727,7 @@ $$('#mode-list .mode-card').forEach((btn) => {
    ② 输入法正在组词时，回车/完成键只用来确认候选词，绝不触发开局；
    ③ 🎲 一键随机取名 + 留空自动分配，不依赖键盘也能开始。 */
 const RANDOM_NAMES = [
-  '小帅', '林一', '苏念', '陈屿', '顾清', '周叙', '沈砚', '叶知秋',
+  '顾庸', '林一', '苏念', '陈屿', '温度', '周叙', '沈砚', '叶知秋',
   '许川', '温言', '白露', '程野', '江述', '唐栗', '郑也', '何夕',
 ];
 
@@ -864,8 +864,8 @@ if ($('#in-diff')) {
 // 选科适配度提示：女生学物理 / 男生学历史，学习收益会打折。
 function trackAptitudeNote(track) {
   const t = track || (S && S.track) || CFG.track || '物理';
-  if (CFG.gender === '女' && t === '物理') return '⚠ 女生学物理：选科后「学习优先」的收益会降低（-3）。';
-  if (CFG.gender === '男' && t === '历史') return '⚠ 男生学历史：选科后「学习优先」的收益会降低（-3）。';
+  if (CFG.gender === '女' && t === '物理') return '⚠ 女生学物理：选科后「学习优先」的收益会降低（-1）。';
+  if (CFG.gender === '男' && t === '历史') return '⚠ 男生学历史：选科后「学习优先」的收益会降低（-1）。';
   return '当前性别与这个选科的适配度正常，学习收益不受额外影响。';
 }
 
@@ -1619,21 +1619,21 @@ const CAMPUS_EVENTS = [
     t: 'choice',
     condition: () => !isBoarder(),
     build: () => ({
-      title: '走读生带外卖进校',
-      body: '走读生可以点外卖，但不能让外卖直接出现在校内。你得先从外面把餐带进来，途中可能被门卫或老师查到。',
+      title: '走读生帮同学带早餐',
+      body: '走读生可以在校外吃早餐，但住宿生不可以，所以许多住宿生托走读生帮忙带学校外面的肠粉、蒸米粉等更美味的早餐。',
       options: [
         {
-          label: '拆掉包装再带进来',
-          fx: { social: 2, sleep: -1 },
-          text: '你在校门外把包装处理掉，提着普通袋子进校，午休时和同桌分着吃完。',
-          kind: 'event', journal: '· 走读外卖带进校成功',
+          label: '早起帮同学带早餐',
+          fx: { social: 4, sleep: -2 },
+          text: '你早早地起床，在肠粉店买了二十几份肠粉，师傅做好时已经快要早读了。',
+          kind: 'event', journal: '· 带早餐进校成功',
         },
         {
-          label: '直接拎着外卖闯进去',
-          fx: { social: 2, sleep: -2 },
-          resolve: () => chance(0.55)
-            ? { fx: { social: 3, sleep: -1 }, kind: 'good', title: '外卖混进来了', text: '你低头快走，居然没有被拦。午休铃一响，袋子里的香味让半个班都转过头。', journal: '· 走读外卖混入成功' }
-            : { fx: { social: -3, study: -1 }, kind: 'bad', title: '外卖被查', text: '刚过门卫处，老师就叫住了你。外卖被登记，午饭只能重新想办法。', journal: '· 走读外卖被查' },
+          label: '不帮住宿生带早餐',
+          fx: { social: -2, sleep: 2 },
+          resolve: () => chance(0.45)
+            ? { fx: { social: 1, sleep: 1 }, kind: 'good', title: '同学觉得你确实很赶，也没有责怪你', text: '你和同学们还是好朋友。', journal: '· 同学理解' }
+            : { fx: { social: -3, study: -1 }, kind: 'bad', title: '同学觉得你就多带一份没什么大不了的', text: '有的同学觉得你很小气。', journal: '· 同学不高兴' },
         },
       ],
     }),
@@ -1660,7 +1660,7 @@ const CAMPUS_EVENTS = [
         { label: '老鸭粉丝汤', fx: { social: 3, sleep: 1 }, text: '热气先把人哄好了。你吃完才发现，今天的坏心情已经没剩多少。', kind: 'good', journal: '· 校外：老鸭粉丝汤', onPick: () => collectFood('校外·老鸭粉丝汤') },
         { label: '莞留香', fx: { social: 3, study: 1 }, text: '店里的味道稳稳当当，适合在一周被卷完之后认真吃一顿。', kind: 'good', journal: '· 校外：莞留香', onPick: () => collectFood('校外·莞留香') },
         { label: '鹅好味', fx: { social: 4, sleep: 1 }, text: '烧腊切开时还带着光。你决定下次再来，顺便把同桌也带上。', kind: 'good', journal: '· 校外：鹅好味', onPick: () => collectFood('校外·鹅好味') },
-        { label: '品中品', fx: { social: 2, study: 1 }, text: '饭菜好吃，汤也顺口。你用一顿饭把自己从考试周里捞了出来。', kind: 'good', journal: '· 校外：品中品', onPick: () => collectFood('校外·品中品') },
+        { label: '品中品', fx: { social: 2, study: 1 }, text: '饭菜好吃，汤也可口。你用一顿饭把自己从考试周里捞了出来。', kind: 'good', journal: '· 校外：品中品', onPick: () => collectFood('校外·品中品') },
         { label: '鲜汇', fx: { social: 3, sleep: 1 }, text: '奶茶、菠萝包和一会儿不用讨论成绩的时间，组成了一个很像假期的晚上。', kind: 'good', journal: '· 校外：鲜汇', onPick: () => collectFood('校外·茶餐厅') },
       ],
     }),
@@ -1694,15 +1694,15 @@ const CAMPUS_EVENTS = [
     t: 'choice',
     build: () => ({
       title: '晚修的手机',
-      body: '晚修教室里只有翻书声和笔尖声。手机在口袋里震了一下，走廊上传来巡堂的脚步声。',
+      body: '晚修教室里只有翻书声和笔尖声。手机在口袋里震了一下，走廊上传来值班老师的脚步声。',
       options: [
         {
           label: '低头刷一会儿',
           fx: { study: -2, sleep: -1 },
           chanceLabel: '不被抓约 26%',
-          riskHint: '晚修巡堂最勤，级长们专门盯这一节',
+          riskHint: '晚修班主任会来看，级长们也专门盯着',
           resolve: () => chance(0.26)
-            ? { fx: { study: -1, social: 2 }, kind: 'event', title: '晚修摸鱼成功', text: '巡堂的脚步在你们班门口停了两秒，又走远了。你把手机塞回口袋，心跳快了半天。', journal: '· 晚修玩手机：躲过巡堂' }
+            ? { fx: { study: -1, social: 2 }, kind: 'event', title: '晚修摸鱼成功', text: '值班老师的脚步在你们班门口停了两秒，又走远了。你把手机塞回口袋，心跳快了半天。', journal: '· 晚修玩手机：躲过老师' }
             : (() => { const who = phoneCatcher(); return { fx: { study: -4, social: -3, sleep: -2 }, kind: 'bad', title: `${who}站在了你身后`, text: `你正看得入神，一只手从背后伸过来把手机抽走。${who}面无表情：「晚修时间，手机先放我这。」走廊上的议论声比训话还难受。`, journal: `· 晚修玩手机被${who}抓` }; })(),
         },
         {
@@ -1758,13 +1758,13 @@ const CAMPUS_EVENTS = [
     condition: () => isBoarder() && S.semIdx >= 4,
     build: () => ({
       title: '高三宿舍的熄灯之后',
-      body: '高三在高三楼，宿舍熄灯后的检查松了很多。宿管只在楼下转一圈，很少真的上来翻床。你还有半集视频没看完。',
+      body: '高三在高三楼，宿舍熄灯后的检查松了很多。宿管只在宿舍外转一圈，很少真的上来翻床。你还有半集视频没看完。',
       options: [
         {
           label: '躲被窝里继续看',
           fx: { sleep: -2, social: 2 },
           chanceLabel: '不被抓约 72%',
-          riskHint: '高三宿舍查得松，但 宿管偶尔会来查手机',
+          riskHint: '高三宿舍查得松，但宿管偶尔会来查手机',
           resolve: () => chance(0.72)
             ? { fx: { sleep: -3, social: 3 }, kind: 'event', title: '被窝里的半小时', text: '你把被子堆成一个帐篷，屏幕的光漏不出去。看到结尾的时候，走廊里已经彻底没声音了。', journal: '· 高三宿舍玩手机：安全' }
             : (() => { const who = phoneCatcher(); return { fx: { sleep: -4, social: -2, study: -1 }, kind: 'bad', title: `${who}今天上来了`, text: `被子被掀开的那一刻你就知道完了。${who}看了看屏幕，又看了看你：「高三了还这样。」手机被收，明天早读还得去办公室。`, journal: `· 高三宿舍玩手机被${who}抓` }; })(),
@@ -2944,7 +2944,7 @@ function boyEvent07() {
     intro: {
       kind: 'love',
       title: '🌬️ 天台上的风',
-      body: `天台风大。\n\n${ta}靠在栏杆上，手里没有烟，只是把手插在兜里，看着远处。\n\n${ta}：「你怎么上来的。」`,
+      body: `天台风大。\n\n${ta}靠在栏杆上，把手插在兜里，看着远处。\n\n${ta}：「你怎么上来的。」`,
     },
     options: [
       { label: '「找你。」', fx: { aff: 9, social: 2, sleep: -1 }, kind: 'love', title: '🌬️ 找你',
@@ -3746,7 +3746,7 @@ function loveEnding() {
   }
   if (S.flags.rejected >= 1 && S.flags.breakups >= 1) {
     return {
-      title: '小丑毕业了',
+      title: '毕业了',
       desc: '三年里，你拒绝过别人，也被拒绝过；牵过手，也松开过手。毕业照上你笑得很标准——有些心动，本来就只适合放在回忆里。',
     };
   }

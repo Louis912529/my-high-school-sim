@@ -247,7 +247,7 @@ process.on('uncaughtException', (e) => {
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log('==============================================');
-  console.log('  象贤人生 · 高中三年模拟器 服务器已启动');
+  console.log('  莞中生活 · 校园生活模拟器 服务器已启动');
   console.log(`  本机游玩:  http://localhost:${PORT}`);
   console.log(`  局域网联机: http://<本机IP>:${PORT}  (同学可连)`);
   console.log('  数据保存在 ./data/ 目录，可随时删除重置');

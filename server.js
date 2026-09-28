@@ -1,5 +1,5 @@
 /**
- * 象贤人生 · 高中三年模拟器 —— 本地服务器
+ * 莞中生活 · 校园生活模拟器 —— 本地服务器
  * 零依赖，Node 原生实现：node server.js 即可运行
  * 提供：静态页面 + 排行榜 / 全校动态 / 云存档 / 在线心跳
  */
@@ -107,11 +107,22 @@ const server = http.createServer(async (req, res) => {
     safeWrite(res, 500, { 'Content-Type': 'text/plain; charset=utf-8' }, '500 Internal Server Error');
   }
 });
-
 async function handleRequest(req, res) {
+  // 添加 CORS 跨域支持
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204);
+    res.end();
+    return;
+  }
+
+  // ... 下面原有的代码保持原样，不要动
   const url = new URL(req.url, `http://localhost:${PORT}`);
   const p = url.pathname;
-
+  // ...
+}
   // ---------- API ----------
   // 存活探针：uptime 一直增长说明进程没重启过；归零就说明崩过。
   if (p === '/api/health') {

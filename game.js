@@ -56,8 +56,8 @@ function talentFx(name) {
 
 /* ---------------- 难度 ----------------
    两档：
-   · hard 困难 +1 —— 原本的默认强度。
-   · hell 炼狱 +2 —— 新增的更高难度模式：考试更密、属性收益更低、
+   · hard 普通 —— 原本的默认强度。
+   · hell 困难 —— 新增的更高难度模式：考试更密、属性收益更低、
      休学更容易、高考竞争扣分更狠、恋爱推进更慢。
    所有数值集中在预设里，改一处即可同时影响全局。 */
 const DIFFICULTY_PRESETS = Object.freeze({
@@ -128,7 +128,7 @@ function dormLabelForSem(semIdx) {
   return `${campusForSem(semIdx)} · 宿舍按年级分配`;
 }
 function residencySummaryForSem(semIdx) {
-  if (!isBoarder()) return `走读生 · ${campusForSem(semIdx)} · ${weekendScheduleForSem(semIdx)} · 早餐和外卖可从校外带入但可能被查`;
+  if (!isBoarder()) return `走读生 · ${campusForSem(semIdx)} · ${weekendScheduleForSem(semIdx)} · 早餐和外卖可从校外带入`;
   return `住宿生 `;
 }
 function collectFood(name) {
@@ -376,7 +376,7 @@ function leaveDurationLabel(months) {
   return `${months} 个月`;
 }
 function sleepLeaveChance(sleep, threshold, base, slope) {
-  // 难度会整体放大休学风险：炼狱档睡眠掉到同样水平，被强制休学的概率更高。
+  // 难度会整体放大休学风险：困难档睡眠掉到同样水平，被强制休学的概率更高。
   const raw = base + Math.max(0, threshold - sleep) * slope;
   return clamp(raw * DIFFICULTY.leaveChanceMul, base, 0.9);
 }
@@ -854,7 +854,7 @@ bindRow('#in-track');
 bindRow('#in-diff');
 bindRow('#in-love-mode');
 
-// 难度说明：切换时同步提示文案，避免玩家不知道「炼狱」难在哪。
+// 难度说明：切换时同步提示文案，避免玩家不知道「困难」难在哪。
 function refreshDifficultyNote() {
   const row = $('#in-diff');
   const noteEl = $('#diff-note');
@@ -1283,7 +1283,7 @@ function buildEventQueue() {
     loveQuotaTick();
   }
 
-  // 考试密度由难度决定：困难每 5 轮，炼狱每 4 轮。
+  // 考试密度由难度决定：普通每 5 轮，困难每 4 轮。
   if (S.round % DIFFICULTY.examInterval === 0) QUEUE.push({ t: 'exam' });
 }
 
@@ -1692,7 +1692,7 @@ const CAMPUS_EVENTS = [
           label: '把手机压在课本下刷一会儿',
           fx: { study: -2, sleep: -1 },
           chanceLabel: '不被抓约 30%',
-          riskHint: '被郑rj/林zy/巨 wf/刘hg/曾y逮到的概率很大',
+          riskHint: '被郑rj/林zy/巨 wf/练jc/曾y逮到的概率很大',
           resolve: () => chance(0.3)
             ? { fx: { study: -1, social: 2 }, kind: 'event', title: '手机藏得不错', text: '你把屏幕亮度调到最低，靠课本挡住半边天。四十分钟后下课铃响，居然没人发现。', journal: '· 课堂玩手机：躲过巡堂' }
             : (() => { const who = phoneCatcher(); return { fx: { study: -4, social: -2, sleep: -1 }, kind: 'bad', title: `${who}收走了手机`, text: `后门无声地开了。${who}直接走到你桌边，把手伸进抽屉：「拿出来。」全班的目光都转了过来。手机被登记，班主任的通知比你到家还快。`, journal: `· 课堂玩手机被${who}抓` }; })(),
@@ -1717,7 +1717,7 @@ const CAMPUS_EVENTS = [
           label: '低头刷一会儿',
           fx: { study: -2, sleep: -1 },
           chanceLabel: '不被抓约 26%',
-          riskHint: '晚修班主任会来看，级长们也专门盯着',
+          riskHint: '晚修班主任会来看，级长们也盯着',
           resolve: () => chance(0.26)
             ? { fx: { study: -1, social: 2 }, kind: 'event', title: '晚修摸鱼成功', text: '值班老师的脚步在你们班门口停了两秒，又走远了。你把手机塞回口袋，心跳快了半天。', journal: '· 晚修玩手机：躲过老师' }
             : (() => { const who = phoneCatcher(); return { fx: { study: -4, social: -3, sleep: -2 }, kind: 'bad', title: `${who}站在了你身后`, text: `你正看得入神，一只手从背后伸过来把手机抽走。${who}面无表情：「晚修时间，手机先放我这。」走廊上的议论声比训话还难受。`, journal: `· 晚修玩手机被${who}抓` }; })(),
@@ -2241,7 +2241,7 @@ function loveFirstMilestone() { return loveIsBoy() ? '第一个外号' : '初次
 // 四位可攻略对象：四种性格，名字中性，性别随玩家取反
 const LOVE_CHARS = {
   A: {
-    key: 'A', name: '沈幼楚', persona: '高冷学霸型', club: '图书委员',
+    key: 'A', name: '沈清禾', persona: '高冷学霸型', club: '图书委员',
     meetPlace: '图书馆闭馆前十分钟的还书台',
     meetLine: '「……书还回来的时候，别折页。」',
     hobby: '闭馆后的图书馆',
@@ -2250,7 +2250,7 @@ const LOVE_CHARS = {
     refuseBody: 'TA 看着你的眼睛把这句话说完，然后很轻地鞠了一躬。',
   },
   B: {
-    key: 'B', name: '林越', persona: '元气运动型', club: '田径队',
+    key: 'B', name: '林溪月', persona: '元气运动型', club: '田径队',
     meetPlace: '操场边',
     meetLine: '「诶——你就是那个总在晚修最后走的？」',
     hobby: '比赛结束后的看台',
@@ -2259,7 +2259,7 @@ const LOVE_CHARS = {
     refuseBody: 'TA 笑了一下，笑得比哭还难看。',
   },
   C: {
-    key: 'C', name: '顾清和', persona: '温柔文艺型', club: '美术社',
+    key: 'C', name: '顾知予', persona: '温柔文艺型', club: '美术社',
     meetPlace: '教学楼二层的连廊上',
     meetLine: '「你看那边的云。」',
     hobby: '放学后的画室',
@@ -2268,7 +2268,7 @@ const LOVE_CHARS = {
     refuseBody: 'TA 说完就低下头，手指在袖口上反复摩挲。',
   },
   D: {
-    key: 'D', name: '陈念', persona: '傲娇同级型', club: '同班同学',
+    key: 'D', name: '陈书言', persona: '傲娇同级型', club: '同班同学',
     meetPlace: '教室后门',
     meetLine: '「谁要你管。」',
     hobby: '「顺路」带了整整一学期的早餐',
@@ -2282,7 +2282,7 @@ const LOVE_CHARS = {
 // 这样 lp() 的性格取词逻辑两条线可以完全复用。
 const BOY_CHARS = {
   A: {
-    key: 'A', name: '江野', persona: '沉默运动型', club: '校队主力',
+    key: 'A', name: '江星然', persona: '沉默运动型', club: '校队主力',
     meetPlace: '操场跑道边，训练刚结束',
     meetLine: '「……让一下。」',
     hobby: '训练结束后空着的跑道',
@@ -2291,7 +2291,7 @@ const BOY_CHARS = {
     refuseBody: 'TA 点点头，把本来要给你的东西揣回兜里：「那我们还是朋友吧。」',
   },
   B: {
-    key: 'B', name: '陆昭', persona: '阳光学生会长型', club: '学生会',
+    key: 'B', name: '陆云舒', persona: '阳光学生会长型', club: '学生会',
     meetPlace: '教学楼大厅的学生会公告板前',
     meetLine: '「同学，帮个忙——这张表贴左边还是右边？」',
     hobby: '每次都说「我正好路过」',
@@ -2300,7 +2300,7 @@ const BOY_CHARS = {
     refuseBody: 'TA 笑着摆手：「这件事当我没说，好吧？」然后一个月没敢跟你对视。',
   },
   C: {
-    key: 'C', name: '温叙', persona: '安静学神型', club: '常年第一',
+    key: 'C', name: '温临川', persona: '安静学神型', club: '常年第一',
     meetPlace: '图书馆靠窗的那排座位',
     meetLine: '「……这个位置，有人。」',
     hobby: '封面上什么都没写的那本笔记',
@@ -2309,7 +2309,7 @@ const BOY_CHARS = {
     refuseBody: 'TA 把那张纸收回去：「谢谢你认真看完。」',
   },
   D: {
-    key: 'D', name: '周迟', persona: '嘴硬少年型', club: '同班后桌',
+    key: 'D', name: '吴舟晚', persona: '嘴硬少年型', club: '同班后桌',
     meetPlace: '教室后门',
     meetLine: '「喂，你挡我路了。」',
     hobby: '「顺路」走了半学期的那段路',
@@ -2432,7 +2432,7 @@ function shuffle(arr) {
   return a;
 }
 
-// 难度对好感的修正：炼狱模式下推进更慢。
+// 难度对好感的修正：困难模式下推进更慢。
 // 用「向下取整 + 按余数掷骰」做随机取整，避免 delta 很小时被四舍五入吞掉。
 function scaleAff(delta) {
   if (delta <= 0) return delta;
@@ -3764,7 +3764,7 @@ function loveEnding() {
   }
   if (S.flags.rejected >= 1 && S.flags.breakups >= 1) {
     return {
-      title: '毕业了',
+      title: '青涩的回忆',
       desc: '三年里，你拒绝过别人，也被拒绝过；牵过手，也松开过手。毕业照上你笑得很标准——有些心动，本来就只适合放在回忆里。',
     };
   }
@@ -3797,7 +3797,7 @@ function computeScore() {
     rnd(-4, 4)
   ), -8, 8);
   const expectedScore = clamp(band.expected + lifestyleAdjustment, band.low, band.high);
-  // 高三竞争加剧：高考实际分数额外下降（困难 10～30，炼狱 18～42）。
+  // 高三竞争加剧：高考实际分数额外下降（普通 10～30，困难 18～42）。
   const penaltyRange = DIFFICULTY.gaokaoPenalty;
   const competitionPenalty = S.semIdx >= 4 ? rnd(penaltyRange[0], penaltyRange[1]) : 0;
   const finalScore = clamp(expectedScore - competitionPenalty, 200, 750);

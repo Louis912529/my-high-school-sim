@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
-<title>莞中人生 · 高中三年模拟器</title>
+<title>莞中人生 · 校园生活模拟器</title>
 <link rel="stylesheet" href="style.css">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏛️</text></svg>">
 </head>
@@ -14,9 +14,9 @@
   <div class="panel menu-panel">
     <img src="logo.jpg.jpg" class="school-mark-img" alt="校徽">
     <h1 class="brand-title">莞中人生</h1>
-    <p class="brand-subtitle">东莞市东莞中学 · 高中三年人生模拟器</p>
+    <p class="brand-subtitle">东莞市东莞中学 · 校园生活模拟器</p>
     <div class="school-intro">
-      <p>创建于1902年，原名“东莞学堂”，1950年改名为东莞中学</p>
+      <p>创建于1902年，原名东莞学堂，1950年改名为东莞中学</p>
       <p>校训：<b>思考人生 追求真理 报效祖国 服务社会</b></p>
       <p>办学理念：<b>自主 和谐 共同发展</b></p>
       <p>办学宗旨：<b>对每一位学生的终身发展负责</b></p>
@@ -25,13 +25,13 @@
     <p class="label-green">选 择 游 戏 时 长</p>
     <div class="mode-list" id="mode-list">
       <button class="mode-card selected" data-mode="immersive" data-rounds="90">
-        <b>沉浸 <small>beta</small></b>
+        <b>沉浸</b>
         <span>选择更多，每段故事都不错过</span>
         <em>90 轮</em>
       </button>
       <button class="mode-card" data-mode="standard" data-rounds="60">
         <b>标准</b>
-        <span>不紧不慢度过三年</span>
+        <span>不紧不慢地度过三年</span>
         <em>60 轮</em>
       </button>
       <button class="mode-card" data-mode="speed" data-rounds="30">
@@ -48,10 +48,10 @@
         <li><i class="dot social"></i><span><b>社交</b>：人际关系与心情，太低会孤独。</span></li>
         <li><i class="dot study"></i><span><b>学习</b>：决定期末排名与高考档位；高三同样属性排名更低，最终高考实际分数按难度加分。</span></li>
       </ul>
-      <p class="love-note">恋爱线：开学后会遇见一个人，好感度分「陌生 → 认识 → 朋友 → 暧昧 → 恋人」五档；社交月、闲聊、约会、节日都会推动好感，冷落则会降温。好感 90 且告白成功才算在一起。<b>恋爱剧情约占全部剧情的 1/3</b>。</p>
+      <p class="love-note">感情线：开学后会遇见一个人，好感度分「陌生 → 认识 → 朋友 → 暧昧 → 恋人」五档；社交月、闲聊、约会、节日都会推动好感，冷落则会降温。好感 90 且告白成功才算在一起。开局可选<b>感情倾向</b>，包括“全心投入”、“顺其自然”和“专注学业”三种，分别对应全感情线、半感情线和无感情线。</p>
       <p class="residency-note">住宿生有宿舍、宿管查手机、夜间游戏；走读生可带早餐和外卖。</p>
-      <p class="residency-note">女生学物理、男生学历史时，「学习优先」收益会降低；课堂和晚修可以玩手机，但年级主任与级长抓得很紧。</p>
-      <p class="residency-note diff-note">难度：<b>普通</b> 是默认强度，考试每 5 轮一次；<b>困难 </b> 是新增的更高难度模式——考试每 4 轮一次，属性收益更低，休学更容易，高三竞争扣分更狠，好感推进也更慢。</p>
+      <p class="residency-note">女生学物理、男生学历史时，「学习优先」收益会降低；课堂和晚修可以玩手机，但级长与班主任会抓。</p>
+      <p class="residency-note diff-note">难度：<b>普通</b> 是默认强度，考试每 5 轮一次；<b>困难 </b> 是更高难度的模式——考试每 4 轮一次，属性收益更低，休学更容易，扣分更狠，好感推进更慢。</p>
     </div>
 
     <button id="btn-to-setup" class="grad-btn">开 启 莞 中 生 活</button>
@@ -61,16 +61,17 @@
       <button id="btn-feed" class="ghost-btn">📢 全 校 动 态</button>
     </div>
     <p class="net-status" id="net-status">联机检测中…</p>
-    <p class="hardcore-warning">⚠ 硬核版：躺平会退步，硬卷会崩溃，睡眠过低会直接强制休学。开局可选「 普通 」「 困难 」。</p>
+    <p class="hardcore-warning"> 躺平会退步，硬卷会崩溃，睡眠过低会强制休学。开局可选「 普通 」「 困难 」。</p>
 
     <div class="disclaimer">
       <div class="disclaimer-title">免 责 声 明</div>
-      <p>本作是<b>玩家自制的校园模拟小游戏</b>与东莞市东莞中学<b>无隶属关系，亦非官方出品</b>；文中出现的校名、校训、校史仅作剧情背景，不含任何贬损或误导意图。</p>
+      <p>本作是<b>玩家自制的校园模拟小游戏</b>，与东莞市东莞中学<b>无隶属关系，亦非官方出品</b>；文中出现的校名、校训、校史仅作剧情背景，不含任何贬损或误导意图。</p>
       <p>剧情、人物、事件、考试分数与排名<b>均为虚构</b>，与任何真实人物、真实事件无关，如有雷同纯属巧合。</p>
       <p>游戏内的数值与结局<b>仅供娱乐</b>，不构成任何学业、升学或人生建议，请勿作为现实决策的参考。</p>
       <p>「全校排行榜」与「全校动态」会<b>公开展示你填写的名字和成绩</b>，请勿填写真实姓名、学号、联系方式等隐私信息。若本作内容有冒犯或侵权之处，请联系作者删除。</p>
-      <p>该网页作者：留意 邮箱：3503390649@qq.com </p>
-      <p> 原作者：https://github.com/ye20080217-cmyk/xiangxian-life-sim </p>
+      <p>原作者：https://github.com/ye20080217-cmyk/xiangxian-life-sim </p>
+      <p>该网页作者：https://github.com/Louis912529/my-high-school-sim </p>
+      <p><b>作者邮箱：</b>3503390649@qq.com</p>
     </div>
   </div>
 </div>
@@ -79,7 +80,7 @@
 <div id="screen-setup" class="screen hidden">
   <div class="panel setup-panel">
     <div class="setup-topline"><span>莞中人生</span><span>OPENING</span></div>
-    <h1>开启三年人生</h1>
+    <h1>开启三年莞中生活</h1>
     <p class="eyebrow">把名字写下，选择你要过的高中生活</p>
 
     <div class="field">
@@ -128,18 +129,18 @@
 
     <p class="label-green">班 级</p>
     <div class="class-list class-inline" id="in-class">
-      <button class="class-card selected" data-v="镜堂班"><b>镜堂班</b><span>待定</span></button>
-      <button class="class-card" data-v="容庚班"><b>容庚班</b><span>待定</span></button>
+      <button class="class-card selected" data-v="镜堂班"><b>镜堂班</b><span>明镜正心</span></button>
+      <button class="class-card" data-v="容庚班"><b>容庚班</b><span>容才庚进</span></button>
     </div>
 
     <p class="label-green">难 度</p>
     <div class="class-list class-inline" id="in-diff">
-      <button class="class-card selected" data-v="hard"><b>困 难 +1</b><span>默认强度</span></button>
-      <button class="class-card hell-card" data-v="hell"><b>炼 狱 +2</b><span>更高难度 · 自找苦吃</span></button>
+      <button class="class-card selected" data-v="hard"><b>普通</b><span>默认强度</span></button>
+      <button class="class-card hell-card" data-v="hell"><b>困难</b><span>更高难度</span></button>
     </div>
     <p class="hint-line" id="diff-note">普通：考试每 5 轮一次，资源取舍偏紧。</p>
 
-    <button class="grad-btn" id="btn-begin">🔨 开 启 三 年 人 生</button>
+    <button class="grad-btn" id="btn-begin">🔨 开 启 莞 中 人 生</button>
     <button class="ghost-btn" id="btn-step1-back">返 回 主 菜 单</button>
     <p class="setup-warning">⚠ 你的选择会影响睡眠、社交、学习、恋爱与高考结算。</p>
   </div>

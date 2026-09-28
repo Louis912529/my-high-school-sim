@@ -44,9 +44,9 @@ let CFG = {
 
 // 开局天赋：只给起步属性，不再和恋爱线绑定。
 const TALENT_FX = Object.freeze({
-  '学霸胚子': { study: 15 },
-  '社交达人': { social: 15 },
-  '心态大师': { sleep: 15 },
+  '学霸胚子': { study: 10 },
+  '社交达人': { social: 10 },
+  '心态大师': { sleep: 10 },
 });
 
 function talentFx(name) {
@@ -143,17 +143,17 @@ function buildOpenDayEvent() {
     {
       month: '12月', flag: 'openDayDecSeen', title: '🏫 十二月学校开放日',
       body: '校园开放日的横幅挂在校门口，家长和初中生沿着教学楼参观。你站在熟悉的走廊里，第一次从“学生”的视角介绍自己的学校。',
-      fx: { social: 3, study: 1, sleep: -1 }, journal: '· 12月学校开放日',
+      fx: { social: 3, study: 1, sleep: -2 }, journal: '· 12月学校开放日',
     },
     {
       month: '3月', flag: 'openDayMarSeen', title: '🌱 三月学校开放日',
       body: '春天的树影铺满操场，学校又迎来一批来访的家长和学弟学妹。社团摊位、实验室和图书馆都比平时热闹。',
-      fx: { social: 4, study: 2, sleep: -1 }, journal: '· 3月学校开放日',
+      fx: { social: 4, study: 1, sleep: -1 }, journal: '· 3月学校开放日',
     },
     {
       month: '5月', flag: 'openDayMaySeen', title: '🌼 五月学校开放日',
       body: '五月的校园开放日撞上了冲刺季。外面的人在看校园风景，你们在教室里看倒计时，忙碌和热闹隔着一扇门同时发生。',
-      fx: { social: 3, study: 2, sleep: -2 }, journal: '· 5月学校开放日',
+      fx: { social: 3, study: 1, sleep: -2 }, journal: '· 5月学校开放日',
     },
   ];
   const event = events.find((item) => phase.startsWith(item.month) && !S.flags[item.flag]);
@@ -187,11 +187,11 @@ function festivalsOfYear(year) {
   const t = REAL_LUNAR_FESTIVALS[year];
   const list = [
     {
-      id: `${year}-元旦`, month: 1, day: 1, emoji: '🎊', name: '元旦', fx: { sleep: 2, social: 1 },
+      id: `${year}-元旦`, month: 1, day: 1, emoji: '🎊', name: '元旦', fx: { sleep: 1, social: 1 ,study: -1},
       text: '元旦放假，教室后墙的倒计时被撕掉一页，换上了新的数字。你在家里睡到自然醒，醒来时听见楼下有人在放烟花。',
     },
     {
-      id: `${year}-劳动节`, month: 5, day: 1, emoji: '🧹', name: '劳动节', fx: { sleep: 3, social: 1, study: -1 },
+      id: `${year}-劳动节`, month: 5, day: 1, emoji: '🧹', name: '劳动节', fx: { sleep: 3, social: 1, study: -3 },
       text: '五一小长假。有人在补课，有人在补觉，你选了后者——反正作业已经堆在桌角了。',
     },
     {
@@ -402,9 +402,12 @@ function trackStudyPenaltyLabel() {
 
 function mainEffects(act) {
   const level = DIFFICULTY.level;
-  if (act === 'sleep') return { sleep: 12 - level, social: -(2 + level), study: -(3 + level) };
-  if (act === 'social') return { sleep: -(3 + level), social: 10 - level, study: -(2 + level) };
-  const studyGain = Math.max(2, 10 - level - trackStudyPenalty());
+  // 睡眠优先：睡眠收益从 12 改成 9
+  if (act === 'sleep') return { sleep: 9 - level, social: -(2 + level), study: -(3 + level) };
+  // 社交优先：社交收益从 10 改成 7
+  if (act === 'social') return { sleep: -(3 + level), social: 7 - level, study: -(2 + level) };
+  // 学习优先：学习收益从 10 改成 7（Math.max(2, ...) 是为了防止低难度下扣成负数）
+  const studyGain = Math.max(2, 7 - level - trackStudyPenalty());
   return { sleep: -(5 + level), social: -(3 + level), study: studyGain };
 }
 
@@ -966,11 +969,11 @@ $('#btn-sem-start').addEventListener('click', () => {
     const trackText = CFG.track ? `选了${CFG.track}方向` : '文理分科将在高一下学期进行';
     const residencyText = isBoarder()
       ? `你是住宿生：${dormLabelForSem(S.semIdx)}，宿舍没有插座，教室和宿舍吹风筒处可以充电。`
-      : '你是走读生：每天回家，不吃饭堂；早餐和外卖可以从校外带进来，但可能被查。';
+      : '你是走读生：每天回家，不吃饭堂，早餐和外卖可以从校外带进来。';
     logEvent('sys', '欢迎来到东莞中学', `你叫${S.name}，分在${CFG.className}，${trackText}。\n${residencyText}\n\n东莞中学三年，${totalRounds()} 次选择。睡眠、社交、学习——没有完美答案，只有取舍。`, null);
     S.logBooted = true;
     journal('→ 在莞中的三年开始了');
-    netBroadcast('开启了在东莞中学的三年人生', '🎒');
+    netBroadcast('开启在东莞中学的三年旅程', '🎒');
   }
   showMainChoices();
 });
@@ -1380,7 +1383,7 @@ const CAMPUS_EVENTS = [
     build: () => ({
       kind: 'event', title: '📖 晚修停电',
       body: '晚修中途整栋楼停电。欢呼声掀翻屋顶，蜡烛和手机电筒陆续亮起，后排开始讲鬼故事。',
-      fx: { social: 4, sleep: 1, study: -2 },
+      fx: { social: 4, sleep: -1, study: -2 },
       journal: '· 晚修停电',
     }),
   },
@@ -1389,7 +1392,7 @@ const CAMPUS_EVENTS = [
     build: () => ({
       kind: 'bad', title: '🧯 突袭默写',
       body: '语文老师抱着一沓听写本走进来：「昨天让背的，现在默。」全班倒吸凉气。你的手心全是汗。',
-      fx: { study: -2, sleep: -1, social: 0 },
+      fx: { study: 1, sleep: -1, social: 0 },
       journal: '· 突袭默写',
     }),
   },
@@ -1407,8 +1410,8 @@ const CAMPUS_EVENTS = [
     condition: () => isBoarder(),
     build: () => ({
       kind: 'event', title: '🍜 食堂新菜',
-      body: '食堂窗口推出「新品」：不明颜色的糖醋排骨。勇士先尝，全班围观评分——最终得分 3.2 / 10。',
-      fx: { social: 3, sleep: 0, study: -1 },
+      body: '食堂窗口推出「新品」：肉末水蒸蛋。勇士先尝，全班围观评分——最终得分 8.2 / 10。',
+      fx: { social: 3, sleep: -1, study: -1 },
       journal: '· 食堂新品试验',
     }),
   },
@@ -1418,8 +1421,8 @@ const CAMPUS_EVENTS = [
       title: '手机被缴危机',
       body: '自习课你偷偷刷了会儿视频，后门玻璃上出现一张脸。\n班主任的手已经伸到你桌前：「拿出来。」',
       options: [
-        { label: '立刻上交，态度诚恳', fx: { sleep: -1, study: 2 }, text: '你秒速递上手机，并附赠一篇口头检讨。班主任表情缓和：「周五回家再领。」', kind: 'event' },
-        { label: '装傻：「什么手机？」', fx: { sleep: -2, social: -2, study: -3 }, text: '全班憋笑。班主任从你袖口里抽出了还在播放的手机。社死 +1，手机寄存 +1。', kind: 'bad', journal: '· 手机被缴' },
+        { label: '立刻上交，态度诚恳', fx: { sleep: 1, study: 1 }, text: '你秒速递上手机，并附赠一篇口头检讨。班主任表情缓和：「周五回家再领。」', kind: 'event' },
+        { label: '装傻：「什么手机？」', fx: { sleep: 2, social: 2, study: -3 }, text: '全班憋笑。班主任从你袖口里抽出了还在播放的手机。社死 +1，手机寄存 +1。', kind: 'bad', journal: '· 手机被缴' },
       ],
     }),
   },
@@ -1428,7 +1431,7 @@ const CAMPUS_EVENTS = [
     build: () => ({
       kind: 'love', title: '✉️ 课桌里的纸条',
       body: '课间回来，桌肚里多了一张折成心形的纸条。打开只有四个字：「放学等你。」',
-      fx: { social: 4, sleep: -1 },
+      fx: { social: 4, sleep: -2, study: -3 },
       journal: '· 收到纸条',
     }),
   },
@@ -1437,7 +1440,7 @@ const CAMPUS_EVENTS = [
     build: () => ({
       kind: 'event', title: '🌧️ 暴雨与共伞',
       body: '放学暴雨。校门口挤成一团，你把伞倾向没带伞的同学，自己半边肩膀湿透。TA 说明天请你喝奶茶。',
-      fx: { social: 5, sleep: -2, study: -1 },
+      fx: { social: 4, sleep: -2, study: -2 },
       journal: '· 暴雨共伞',
     }),
   },
@@ -1446,7 +1449,7 @@ const CAMPUS_EVENTS = [
     build: () => ({
       kind: 'exam', title: '📝 周测突袭',
       body: '毫无预兆的周测。卷子从后门传上来那一刻，全班发出整齐的哀嚎。',
-      fx: { study: 1, sleep: -2, social: -1 },
+      fx: { study: 1, sleep: -3, social: -1 },
       journal: '· 周测突袭',
     }),
   },
@@ -1455,7 +1458,7 @@ const CAMPUS_EVENTS = [
     build: () => ({
       kind: 'good', title: '🎤 国旗下讲话',
       body: '你被班主任点名去国旗下做分享。站在台上看着全校，腿有点抖，但话筒里的声音意外地稳。',
-      fx: { social: 7, sleep: -1, study: 1 },
+      fx: { social: 7, sleep: -4, study: 1 },
       journal: '· 国旗下讲话',
     }),
   },
@@ -1474,7 +1477,7 @@ const CAMPUS_EVENTS = [
     build: () => ({
       kind: 'event',
       title: '住宿第一晚',
-      body: `宿舍环境比想象中更好：${CFG.gender === '男' ? (S.semIdx >= 4 ? '高三在2到5楼，男生宿舍是 6 人间。' : '高一高二在6到9楼。') : '宿舍按年级分配，公共区域永远不算宽敞。'}\n\n热水不用排队，洗澡用的是花洒；但宿舍房间里没有插座，手机只能去教室或宿舍吹风筒处充电。`,
+      body: `宿舍环境比想象中更好：${CFG.gender === '男' ? (S.semIdx >= 4 ? '高三在2到5楼，男生宿舍是 6 人间。' : '高一高二在6到9楼。') : '宿舍按年级分配，公共区域挺宽敞的。'}\n\n热水不用排队，洗澡用的是花洒；但宿舍房间里没有插座，手机只能去教室或宿舍吹风筒处充电。`,
       fx: { social: 2, sleep: -1 },
       journal: '· 住宿环境登记',
       onPick: () => { S.flags.dormBriefed = true; },
@@ -1491,19 +1494,19 @@ const CAMPUS_EVENTS = [
           label: '把手机藏枕头下',
           fx: { sleep: -2, social: 1 },
           resolve: () => chance(0.3)
-            ? { fx: { sleep: -2, social: 2 }, kind: 'good', title: '枕头藏机成功', text: '老魏在你窗边停了两秒，居然没有继续追问。等脚步声走远，你才敢把气吐出来。', journal: '· 老魏查寝：枕头藏机过关' }
+            ? { fx: { sleep: -2, social: 1, study: -3}, kind: 'good', title: '枕头藏机成功', text: '老魏在你窗边停了两秒，居然没有继续追问。等脚步声走远，你才敢把气吐出来。', journal: '· 老魏查寝：枕头藏机过关' }
             : { fx: { sleep: -3, social: -3, study: -1 }, kind: 'bad', title: '老魏精准定位', text: '你以为枕头能挡住一切，老魏却直接掀开被角：「拿出来。」手机被记名，今晚彻底睡不安稳。', journal: '· 刘超查寝：枕头藏机失败' },
         },
         {
           label: '把手机塞进袜子里',
           fx: { sleep: -2, social: 1 },
           resolve: () => chance(0.42)
-            ? { fx: { sleep: -2, social: 2 }, kind: 'good', title: '袜子藏机过关', text: '袜子味暂时守住了秘密。老魏扫了一眼就走，你决定以后给手机准备一个更体面的藏身处。', journal: '· 老魏查寝：袜子藏机过关' }
+            ? { fx: { sleep: -2, social: 2 ,study: -3}, kind: 'good', title: '袜子藏机过关', text: '袜子味暂时守住了秘密。老魏扫了一眼就走，你决定以后给手机准备一个更体面的藏身处。', journal: '· 老魏查寝：袜子藏机过关' }
             : { fx: { sleep: -3, social: -4, study: -1 }, kind: 'bad', title: '老魏连袜子都查', text: '老魏一眼看出你动作不自然：「袜子里是什么？」你只好把手机交出去，整层宿舍都安静了。', journal: '· 老魏查寝：袜子藏机失败' },
         },
         {
           label: '坦白从宽，主动上交',
-          fx: { sleep: -1, social: 1 },
+          fx: { sleep: -1, social: 1 , study: 1},
           kind: 'event',
           title: '主动上交手机',
           text: '你把手机递过去，老魏检查完只说：「明早来领。」至少今晚不用再担心被突然点名。',
@@ -1519,9 +1522,9 @@ const CAMPUS_EVENTS = [
       title: '熄灯后的宿舍',
       body: `熄灯铃响了，宿舍里却没有一个人真的准备睡觉。大家把声音压低，开始高谈阔论。`,
       options: [
-        { label: '开一局狼人杀', fx: { social: 5, sleep: -4, study: -1 }, text: '预言家第一晚就被刀，狼人却因为笑得太大声暴露了。你们憋笑憋到肚子疼。', kind: 'event', journal: '· 宿舍狼人杀' },
-        { label: '摊开三国杀', fx: { social: 4, sleep: -3, study: -1 }, text: '有人抽到主公，有人摸到一手闪。牌面越来越乱，直到巡楼脚步声从走廊尽头传来。', kind: 'event', journal: '· 宿舍三国杀' },
-        { label: '窜宿找人一起玩', fx: { social: 6, sleep: -5, study: -2 }, text: '你趁查寝间隙溜到隔壁宿舍，几个人挤在门后继续聊天。夜里最快乐的事，往往都不在计划里。', kind: 'event', journal: '· 夜间窜宿' },
+        { label: '开一局狼人杀', fx: { social: 5, sleep: -4, study: -3 }, text: '预言家第一晚就被刀，狼人却因为笑得太大声暴露了。你们憋笑憋到肚子疼。', kind: 'event', journal: '· 宿舍狼人杀' },
+        { label: '摊开三国杀', fx: { social: 4, sleep: -3, study: -3 }, text: '有人抽到主公，有人摸到一手闪。牌面越来越乱，直到巡楼脚步声从走廊尽头传来。', kind: 'event', journal: '· 宿舍三国杀' },
+        { label: '窜宿找人一起玩', fx: { social: 6, sleep: -5, study: -3 }, text: '你趁查寝间隙溜到隔壁宿舍，几个人挤在门后继续聊天。夜里最快乐的事，往往都不在计划里。', kind: 'event', journal: '· 夜间窜宿' },
       ],
     }),
   },
@@ -1568,7 +1571,7 @@ const CAMPUS_EVENTS = [
       kind: 'good',
       title: '学校被征用为社会考场',
       body: '学校偶尔会被征用为社会上的考试考场。这次只征用了高一、高二的教室，周五下午高一高二提前放学；高三不放假，照常上课。',
-      fx: { sleep: 4, social: 2, study: -1 },
+      fx: { sleep: 4, social: 2, study: -2 },
       journal: '· 高一高二周五提前放学',
       onPick: () => { S.flags.examHallBriefed = true; S.flags.examHallLowBriefed = true; },
     }),
@@ -1580,7 +1583,7 @@ const CAMPUS_EVENTS = [
       kind: 'event',
       title: '高三不放假的周六',
       body: '学校又被征用为社会考试考场，但只占用了高一、高二的教室。高三在高三楼照常上课，别人周五下午放学，你们继续面对倒计时和试卷。',
-      fx: { sleep: -3, study: 2, social: -1 },
+      fx: { sleep: -3, study: 1, social: -1 },
       journal: '· 高三照常上课',
       onPick: () => { S.flags.examHallBriefed = true; S.flags.examHallHighBriefed = true; },
     }),
@@ -1592,8 +1595,8 @@ const CAMPUS_EVENTS = [
       title: '趁学弟学妹放假混出去',
       body: '高一高二因为社会考试考场安排提前放假。你们高三虽然不放，但可以叫上他们一起混出校门，短暂逃离高三楼的倒计时。',
       options: [
-        { label: '叫上大家一起混出去', fx: { social: 6, sleep: -3, study: -3 }, text: '你们在校门口汇合，装作只是普通的周末出行。离开高三楼那一刻，所有人都像暂时毕业了一样。', kind: 'good', journal: '· 高三混出去', onPick: () => { S.flags.mixOutSeen = true; } },
-        { label: '留在教室继续刷题', fx: { study: 4, sleep: -2, social: -2 }, text: '你看着群里不断弹出的美食照片，默默把下一套卷子翻开。高三没有真正的周末。', kind: 'exam', journal: '· 高三留校刷题', onPick: () => { S.flags.mixOutSeen = true; } },
+        { label: '叫上大家一起混出去', fx: { social: 5, sleep: -3, study: -3 }, text: '你们在校门口汇合，装作只是普通的周末出行。离开高三楼那一刻，所有人都像暂时毕业了一样。', kind: 'good', journal: '· 高三混出去', onPick: () => { S.flags.mixOutSeen = true; } },
+        { label: '留在教室继续刷题', fx: { study: 3, sleep: -2, social: -2 }, text: '你看着群里不断弹出的美食照片，默默把下一套卷子翻开。高三没有真正的周末。', kind: 'exam', journal: '· 高三留校刷题', onPick: () => { S.flags.mixOutSeen = true; } },
       ],
     }),
   },
@@ -1613,11 +1616,11 @@ const CAMPUS_EVENTS = [
     t: 'choice',
     condition: () => !isBoarder(),
     build: () => ({
-      title: '走读生的早餐检查',
-      body: '你从家里带了早餐进校。走读生可以带早餐，但值日老师和门口检查偶尔会认真翻包。',
+      title: '走读生提前回家',
+      body: '晚修的时候，走读生可以在教室和住宿生一起自习，也可以提早几十分钟回家。',
       options: [
-        { label: '大大方方拎在手上', fx: { social: -2, study: -1 }, text: '你刚进门就被叫住。早餐没被没收，但老师提醒你下次别在检查线上吃东西。', kind: 'bad', journal: '· 走读早餐被查' },
-        { label: '放进书包夹层', fx: { social: 2, sleep: -1 }, text: '你顺利混进教室，第一节课前把早餐解决掉。走读生活的一个小胜利。', kind: 'good', journal: '· 走读早餐带进校' },
+        { label: '直接回家', fx: { social: -2, study: -4, sleep: -4}, text: '你提前回家，躺在床上玩手机，不觉已经凌晨。', kind: 'bad', journal: '· 晚修提前回家' },
+        { label: '留下来自习', fx: { study: 2, sleep: -3 }, text: '你写完了一套卷子，感觉进步不小。', kind: 'good', journal: '· 留校晚修' },
       ],
     }),
   },
@@ -1630,13 +1633,13 @@ const CAMPUS_EVENTS = [
       options: [
         {
           label: '早起帮同学带早餐',
-          fx: { social: 4, sleep: -2 },
+          fx: { social: 4, sleep: -3 ,study: -1},
           text: '你早早地起床，在肠粉店买了二十几份肠粉，师傅做好时已经快要早读了。',
           kind: 'event', journal: '· 带早餐进校成功',
         },
         {
           label: '不帮住宿生带早餐',
-          fx: { social: -2, sleep: 2 },
+          fx: { social: -2, sleep: 2 ,study: -1},
           resolve: () => chance(0.45)
             ? { fx: { social: 1, sleep: 1 }, kind: 'good', title: '同学觉得你确实很赶，也没有责怪你', text: '你和同学们还是好朋友。', journal: '· 同学理解' }
             : { fx: { social: -3, study: -1 }, kind: 'bad', title: '同学觉得你就多带一份没什么大不了的', text: '有的同学觉得你很小气。', journal: '· 同学不高兴' },
@@ -1665,7 +1668,7 @@ const CAMPUS_EVENTS = [
       options: [
         { label: '老鸭粉丝汤', fx: { social: 3, sleep: 1 }, text: '热气先把人哄好了。你吃完才发现，今天的坏心情已经没剩多少。', kind: 'good', journal: '· 校外：老鸭粉丝汤', onPick: () => collectFood('校外·老鸭粉丝汤') },
         { label: '莞留香', fx: { social: 3, study: 1 }, text: '店里的味道稳稳当当，适合在一周被卷完之后认真吃一顿。', kind: 'good', journal: '· 校外：莞留香', onPick: () => collectFood('校外·莞留香') },
-        { label: '鹅好味', fx: { social: 4, sleep: 1 }, text: '烧腊切开时还带着光。你决定下次再来，顺便把同桌也带上。', kind: 'good', journal: '· 校外：鹅好味', onPick: () => collectFood('校外·鹅好味') },
+        { label: '鹅好味', fx: { social: 3, sleep: 1 }, text: '烧腊切开时还带着光。你决定下次再来，顺便把同桌也带上。', kind: 'good', journal: '· 校外：鹅好味', onPick: () => collectFood('校外·鹅好味') },
         { label: '品中品', fx: { social: 2, study: 1 }, text: '饭菜好吃，汤也可口。你用一顿饭把自己从考试周里捞了出来。', kind: 'good', journal: '· 校外：品中品', onPick: () => collectFood('校外·品中品') },
         { label: '鲜汇', fx: { social: 3, sleep: 1 }, text: '奶茶、菠萝包和一会儿不用讨论成绩的时间，组成了一个很像假期的晚上。', kind: 'good', journal: '· 校外：鲜汇', onPick: () => collectFood('校外·茶餐厅') },
       ],
@@ -1728,7 +1731,7 @@ const CAMPUS_EVENTS = [
       kind: 'exam',
       title: '📋 高三模考周',
       body: '连续几天都在发卷子：语文、数学、综合，早读前一套，晚修后一套。模考排名不等于高考，但每个人都盯着那张表，像提前看见了六月的自己。',
-      fx: { sleep: -3, study: 2, social: -1 },
+      fx: { sleep: -4, study: 2, social: -1 },
       journal: '· 高三模考周',
       onPick: () => { S.flags.mockExamSeen = true; },
     }),
@@ -1740,9 +1743,9 @@ const CAMPUS_EVENTS = [
       title: '🔥 高三冲刺',
       body: '百日倒计时翻到最后两位数。班主任把「冲刺」两个字写满黑板：你要用什么方式把最后一段路走完？',
       options: [
-        { label: '极限压缩睡眠，拼一把', fx: { study: 5, sleep: -6, social: -2 }, text: '你把晚修后的时间也切成了知识点。短期成绩确实往上冲，但身体发出的警报越来越明显。', kind: 'exam', journal: '· 高三冲刺：极限刷题', onPick: () => { S.flags.sprintSeen = true; } },
-        { label: '稳住作息，按计划推进', fx: { study: 3, sleep: -1, social: 1 }, text: '你没有突然变成另一个人，只是每天多做一套题、少刷一会儿手机。稳定本身就是冲刺。', kind: 'good', journal: '· 高三冲刺：稳步推进', onPick: () => { S.flags.sprintSeen = true; } },
-        { label: '和同桌互相监督', fx: { study: 4, sleep: -2, social: 3 }, text: '你们把错题贴在桌角，谁先走谁就提醒对方明早带准考证。焦虑没有消失，但不再是一个人扛。', kind: 'event', journal: '· 高三冲刺：同桌互助', onPick: () => { S.flags.sprintSeen = true; } },
+        { label: '极限压缩睡眠，拼一把', fx: { study: 5, sleep: -10, social: -3 }, text: '你把晚修后的时间也切成了知识点。短期成绩确实往上冲，但身体发出的警报越来越明显。', kind: 'exam', journal: '· 高三冲刺：极限刷题', onPick: () => { S.flags.sprintSeen = true; } },
+        { label: '稳住作息，按计划推进', fx: { study: 3, sleep: -3, social: 1 }, text: '你没有突然变成另一个人，只是每天多做一套题、少刷一会儿手机。稳定本身就是冲刺。', kind: 'good', journal: '· 高三冲刺：稳步推进', onPick: () => { S.flags.sprintSeen = true; } },
+        { label: '和同桌互相监督', fx: { study: 2, sleep: -2, social: 3 }, text: '你们把错题贴在桌角，谁先走谁就提醒对方明早带准考证。焦虑没有消失，但不再是一个人扛。', kind: 'event', journal: '· 高三冲刺：同桌互助', onPick: () => { S.flags.sprintSeen = true; } },
       ],
     }),
   },
@@ -1768,7 +1771,7 @@ const CAMPUS_EVENTS = [
       options: [
         {
           label: '躲被窝里继续看',
-          fx: { sleep: -2, social: 2 },
+          fx: { sleep: -4, social: 2 ,study: -3},
           chanceLabel: '不被抓约 72%',
           riskHint: '高三宿舍查得松，但宿管偶尔会来查手机',
           resolve: () => chance(0.72)
@@ -1837,7 +1840,7 @@ const DAILY_SLOTS = [
     body: '早读铃还有五分钟。教室里一半人在背书，一半人还趴在桌上补昨晚的觉。走廊上有人端着豆浆快步走过，窗玻璃上还留着一层水汽。',
     options: [
       {
-        label: '认真晨读背书', fx: { study: 2, sleep: -1 },
+        label: '认真晨读背书', fx: { study: 1, sleep: -1 },
         title: '🌤️ 晨读',
         text: '你把要背的段落拆成三小段，来回过了两遍。早读结束时，那几行字终于顺下来了。',
         journal: '· 早读：认真晨读',
@@ -1875,7 +1878,7 @@ const DAILY_SLOTS = [
         journal: '· 课间：趴桌小憩',
       },
       {
-        label: '拿习题去办公室找老师答疑', fx: { study: 3, sleep: -3 },
+        label: '拿习题去办公室找老师答疑', fx: { study: 2, sleep: -3 },
         title: '📖 办公室答疑',
         text: '办公室里排了三个人。你把攒了两天的题一口气问完，老师顺手在你本子上画了个圈：「这个思路对了。」',
         journal: '· 课间：办公室答疑',
@@ -1887,13 +1890,13 @@ const DAILY_SLOTS = [
         journal: '· 课间：操场走一圈',
       },
       {
-        label: '跑去地下室打乒乓球', fx: { social: 1, study: 1, sleep: -2 },
+        label: '跑去地下室打乒乓球', fx: { social: 1, sleep: -2 },
         title: '📖 打乒乓球',
         text: '你在负1层找到球友，和他打了几局乒乓球，期间你一用力，把球打上了天花板的夹层里。',
         journal: '· 课间：跑去地下室打乒乓球',
       },
       {
-        label: '在教室和同桌聊天打闹', fx: { social: 2, sleep: -1 },
+        label: '在教室和同桌聊天打闹', fx: { social: 2, sleep: -1, study: -1 },
         resolve: () => (chance(0.3)
           ? { fx: { sleep: -1 }, kind: 'daily', title: '📖 被班干部提醒安静', text: '你们笑得正响，班干部敲了敲你的桌子：「小声点，隔壁班都听见了。」你收敛了两分钟，又没忍住。', journal: '· 课间打闹：被班干部提醒安静' }
           : { fx: { social: 2, sleep: -1 }, kind: 'daily', title: '📖 聊了一整节下课', text: '你们从月考聊到暑假，笑得前排都回头。十分钟过得比一节课还快。', journal: '· 课间：聊天打闹' }),
@@ -1913,7 +1916,7 @@ const DAILY_SLOTS = [
         journal: '· 午饭：吃饭午休',
       },
       {
-        label: '快速吃完饭留在教室刷题', fx: { study: 2, sleep: -1 },
+        label: '快速吃完饭留在教室刷题', fx: { study: 1, sleep: -1 },
         title: '🍚 教室刷题',
         text: '你五分钟解决午饭，把错题本翻到第三页。教室里只有两三个人，安静得能听见笔尖划纸的声音。',
         journal: '· 午饭：教室刷题',
@@ -1941,7 +1944,7 @@ const DAILY_SLOTS = [
         journal: '· 放学：操场打球跑步',
       },
       {
-        label: '留在教室写作业，提前完成晚修任务', fx: { study: 2, sleep: -1, social: -1 },
+        label: '留在教室写作业，提前完成晚修任务', fx: { study: 1, sleep: -1, social: -1 },
         title: '🌇 提前写作业',
         text: '你把数学和英语的作业都清了。晚修的时候别人还在赶，你已经翻到了下一章。',
         journal: '· 放学：提前完成晚修任务',
@@ -1990,13 +1993,13 @@ const DAILY_SLOTS = [
     body: '晚修铃响过，教室里只剩翻书声和笔尖声。值班老师会在走廊上来回走两趟，玻璃窗上偶尔会映出一个影子。',
     options: [
       {
-        label: '专心刷题、整理错题', fx: { study: 3, social: -1 },
+        label: '专心刷题、整理错题', fx: { study: 2, social: -1 },
         resolve: () => (chance(0.4)
           ? { fx: {}, kind: 'daily', title: '✍️ 遇到难题，心态崩了', text: '第三道大题你算了四遍，答案一次都没对上。你把笔一扔，趴下去盯着桌角发呆，直到下课铃响才回过神——这两节晚修等于没上。', journal: '· 晚修：遇到难题心态崩了（无加成）' }
           : { fx: { study: 3, social: -1 }, kind: 'daily', title: '✍️ 两节晚修的收获', text: '你把错题本翻到最前面，一道一道重新过。下课铃响的时候，那几类题的解法终于连成了一条线。', journal: '· 晚修：专心刷题整理错题' }),
       },
       {
-        label: '写一会作业就和同桌传纸条', fx: { social: 2, study: -1, sleep: -1 },
+        label: '写一会作业就和同桌传纸条', fx: { social: 2, study: -3, sleep: -1 },
         title: '✍️ 传纸条',
         text: '纸条在两张桌子之间来回折了七八次，内容从吐槽物理老师到明天午饭吃什么。作业只推进了两行。',
         journal: '· 晚修：和同桌传纸条',
@@ -2008,7 +2011,7 @@ const DAILY_SLOTS = [
         journal: '· 晚修：偷偷看课外书',
       },
       {
-        label: '遇到难题心态崩了，发呆摆烂', fx: {},
+        label: '遇到难题心态崩了，发呆摆烂', fx: {study: -3, social: -2, sleep: -1},
         title: '✍️ 发呆摆烂',
         text: '你把笔转了三圈，然后什么也没写。窗外有虫子在叫，你听着听着，两节晚修就过去了。',
         journal: '· 晚修：发呆摆烂（无加成）',
@@ -2022,13 +2025,13 @@ const DAILY_SLOTS = [
     body: '晚修结束，宿舍楼下的灯还亮着。有人一路小跑回去抢洗澡位，有人慢慢走还在对答案。熄灯时间是固定的，谁也躲不过。',
     options: [
       {
-        label: '快速洗漱，早点上床休息', fx: { sleep: 4, social: -1, study: -1 },
+        label: '快速洗漱，早点上床休息', fx: { sleep: 3, social: -1, study: -2 },
         resolve: () => (chance(0.3)
           ? { fx: {}, kind: 'daily', title: '🌙 睡不着', text: '你十点半就躺下了，可脑子一直在转——白天那道题、明天要交的作业、还有同桌随口说的一句话。翻来覆去到快十二点才迷迷糊糊睡过去。', journal: '· 晚修后：失眠（属性不变）' }
           : { fx: { sleep: 4, social: -1, study: -1 }, kind: 'daily', title: '🌙 睡了个好觉', text: '你抢到了洗澡位，十点四十就上了床。宿舍里还在小声聊天，你已经睡着了。', journal: '· 晚修后：早睡' }),
       },
       {
-        label: '继续在台灯下刷题', fx: { study: 2, sleep: -3 },
+        label: '继续在台灯下刷题', fx: { study: 1, sleep: -4 },
         title: '🌙 台灯下的两小时',
         text: '你把台灯调到最暗一档，趴在被子里做了两套选择题。室友翻身的时候，你看了眼时间：快一点了。',
         journal: '· 晚修后：台灯刷题',
@@ -2042,27 +2045,27 @@ const DAILY_SLOTS = [
     body: '周末。作业、想见的人、没睡够的觉，全堆在这两天里。',
     options: [
       {
-        label: '在家埋头刷题备战月考', fx: { study: 3, sleep: -3 },
+        label: '在家埋头刷题备战月考', fx: { study: 2, sleep: -4 },
         title: '📅 周末刷题',
         text: '两天里你几乎没出过房间，写完的卷子摞了一小叠。周日下午收书包的时候，你有点说不出的踏实。',
         journal: '· 周末：埋头刷题',
       },
       {
-        label: '约同学线下见面玩', fx: { social: 2, sleep: -2 },
+        label: '约同学线下见面玩', fx: { social: 2, sleep: -2, study: -3},
         title: '📅 约同学出来',
         text: '你们在商场里逛了一下午，什么也没买，但笑了一路。回家的地铁上，你把作业忘得干干净净。',
         journal: '· 周末：约同学线下见面',
         onPick: () => { dailyGrantLeavePass(); },
       },
       {
-        label: '宅在家里玩手机电脑', fx: { social: 2, study: 1, sleep: -2 },
+        label: '宅在家里玩手机电脑', fx: { social: 2, study: -3, sleep: -2 },
         title: '📅 宅在家里',
         text: '你在学校没有玩手机，所以周末就在刷视频和打游戏中度过。',
         journal: '· 周末：宅在家里',
         onPick: () => { dailyGrantLeavePass(); },
       },
       {
-        label: '好好睡一觉休息，出门逛街散心', fx: { sleep: 3, study: -3 },
+        label: '好好睡一觉休息，出门逛街散心', fx: { sleep: 3, study: -2 },
         title: '📅 睡到自然醒',
         text: '你睡到中午才起，然后一个人出门走了很久。回来的时候天已经黑了，作业一个字没动，但整个人松了下来。',
         journal: '· 周末：睡觉逛街散心',
@@ -2078,7 +2081,7 @@ const DAILY_RANDOM_EVENTS = [
     title: '🎲 班主任安排你负责班级黑板报',
     body: '班主任在走廊上叫住你：「这期黑板报的主题是校庆，你来牵头吧。」说完就转身走了，没给你拒绝的时间。',
     options: [
-      { label: '答应接下任务', fx: { social: 2 }, title: '🎲 接下黑板报', text: '你拉了三个同学一起，利用课间把版面分了工。出刊那天，隔壁班的人特意过来看了两眼。', journal: '· 黑板报：接下任务' },
+      { label: '答应接下任务', fx: { social: 2, study: -1}, title: '🎲 接下黑板报', text: '你拉了三个同学一起，利用课间把版面分了工。出刊那天，隔壁班的人特意过来看了两眼。', journal: '· 黑板报：接下任务' },
       { label: '委婉推辞', fx: {}, title: '🎲 推辞了黑板报', text: '你说最近作业有点多。班主任点点头：「那下次吧。」你说不清心里是松了口气还是有点失落。', journal: '· 黑板报：委婉推辞' },
     ],
   },
@@ -2086,8 +2089,8 @@ const DAILY_RANDOM_EVENTS = [
     title: '🎲 同桌找你要笔记复习',
     body: '月考临近。同桌凑过来，声音压得很低：「你那本笔记……借我看看呗？就一晚上。」',
     options: [
-      { label: '大方借给他', fx: { social: 3 }, title: '🎲 借出笔记', text: '第二天早上，笔记本整整齐齐放在你桌上，里面还夹了一张便利贴：「你圈的重点真准，谢了。」', journal: '· 笔记：大方借出' },
-      { label: '婉拒，自己还要用', fx: { social: -1, study: 3 }, title: '🎲 婉拒了', text: '你说自己晚上还要过一遍。同桌「哦」了一声，转回去翻自己的书。那天你没怎么分心，把整章都过完了。', journal: '· 笔记：婉拒（自己复习）' },
+      { label: '大方借给他', fx: { social: 3, study: -2 }, title: '🎲 借出笔记', text: '第二天早上，笔记本整整齐齐放在你桌上，里面还夹了一张便利贴：「你圈的重点真准，谢了。」', journal: '· 笔记：大方借出' },
+      { label: '婉拒，自己还要用', fx: { social: -1, study: 1 }, title: '🎲 婉拒了', text: '你说自己晚上还要过一遍。同桌「哦」了一声，转回去翻自己的书。那天你没怎么分心，把整章都过完了。', journal: '· 笔记：婉拒（自己复习）' },
     ],
   },
 ];
@@ -3924,9 +3927,9 @@ const DEX_ITEMS_TAIL = [
   { k: '前 50 名', n: '单次考试进年级前 50' },
   { k: '全勤战士', n: '走完全部轮次' },
   { k: '莞中大包', n: '饭堂早餐的大包，2.5元一个，早去才有' },
-  { k: '神秘冰冻大鸡腿', n: '饭堂：大鸡腿' },
-  { k: '薯条', n: '饭堂：薯条' },
-  { k: '宵夜', n: '饭堂：宵夜' },
+  { k: '炸大鸡腿', n: '饭堂：大鸡腿' },
+  { k: '水蒸蛋', n: '饭堂：水蒸蛋' },
+  { k: '冰凉粉', n: '饭堂：冰凉粉' },
   { k: '老鸭粉丝汤', n: '校外美食' },
   { k: '莞留香', n: '校外美食' },
   { k: '鹅好味', n: '校外美食' },

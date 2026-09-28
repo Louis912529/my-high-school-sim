@@ -1078,6 +1078,48 @@ function newGame() {
 }
 
 /* ---------------- 主选择（三属性月度） ---------------- */
+const MONTHLY_SPECIALS = [
+  {
+    key: 'sport', emoji: '🏃', label: '运动优先',
+    body: '这个月你天天泡在操场和体育馆。',
+    fx: { sleep: 4, social: 3, study: -4 },
+  },
+  {
+    key: 'club', emoji: '🎭', label: '社团优先',
+    body: '社团活动占据了你大半个月的课余时间。',
+    fx: { social: 5, sleep: -2, study: -3 },
+  },
+  {
+    key: 'sprint', emoji: '🔥', label: '冲刺突击',
+    body: '你把自己关在教室里，除了做题什么都不管。',
+    fx: { study: 9, sleep: -9, social: -5 },
+  },
+  {
+    key: 'recover', emoji: '🛌', label: '深度休息',
+    body: '这个月你什么都没干，就是睡觉、发呆、养身体。',
+    fx: { sleep: 12, social: -3, study: -7 },
+  },
+  {
+    key: 'game', emoji: '🎮', label: '游戏放松',
+    body: '这个月你沉迷游戏，晚修后都在偷偷打。',
+    fx: { social: 4, sleep: -4, study: -5 },
+  },
+  {
+    key: 'family', emoji: '🏠', label: '回家陪伴',
+    body: '这个月你常回家，和家人的关系更近了。',
+    fx: { sleep: 3, social: 2, study: -3 },
+  },
+  {
+    key: 'reading', emoji: '📖', label: '课外阅读',
+    body: '你读了几本杂书，视野开阔了一点。',
+    fx: { study: 2, social: 2, sleep: -4 },
+  },
+  {
+    key: 'volunteer', emoji: '🤝', label: '志愿服务',
+    body: '你报名了学校的志愿服务队。',
+    fx: { social: 4, sleep: -3, study: -2 },
+  },
+];
 function scrollLogToEnd() {
   const log = $('#log');
   const actionArea = $('#action-area');

@@ -1,7 +1,7 @@
 /**
  * 莞中生活 · 校园生活模拟器 —— 本地服务器
- * 零依赖，Node 原生实现：node server.js 即可运行
- * 提供：静态页面 + 排行榜 / 全校动态 / 云存档 / 在线心跳
+ * 排行榜 / 全校动态 已迁移至 Supabase 云数据库，数据永久保存。
+ * 在线心跳 / 云存档 仍用本地文件（丢失不影响核心体验）。
  */
 const http = require('http');
 const fs = require('fs');
@@ -14,15 +14,33 @@ const PUB = path.join(ROOT, 'public');
 const DATA_DIR = path.join(ROOT, 'data');
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
+// ---------- Supabase 配置 ----------
+// 优先读环境变量，没设置就用你项目里的默认值
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://ffgadvttafglrmxcauun.supabase.co';
+const SUPABASE_KEY = process.env.SUPABASE_KEY || 'sb_publishable_3mq4rd9tGI_I11IkuLA7tg_m_NPg_Qx';
+
+async function supabase(path, opts = {}) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    ...opts,
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=representation',
+      ...(opts.headers || {}),
+    },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Supabase ${res.status}: ${text}`);
+  }
+  return res.json();
+}
+
 const FILES = {
-  leaderboard: path.join(DATA_DIR, 'leaderboard.json'),
-  feed: path.join(DATA_DIR, 'feed.json'),
   saves: path.join(DATA_DIR, 'saves.json'),
   online: path.join(DATA_DIR, 'online.json'),
 };
-// 初始内容：排行榜 / 动态是数组，存档 / 在线表必须是**对象**。
-// 之前 online.json 被初始化成数组，而 online[id] = ts 挂在数组上属于「非索引属性」，
-// JSON.stringify 会直接丢掉它 —— 结果心跳写了 15000 次，文件还是 []，在线人数永远算出来是 0。
 const OBJECT_FILES = new Set(['saves', 'online']);
 for (const k of Object.keys(FILES)) {
   if (!fs.existsSync(FILES[k])) fs.writeFileSync(FILES[k], JSON.stringify(OBJECT_FILES.has(k) ? {} : []));
@@ -35,8 +53,6 @@ function writeJSON(f, obj) {
   try { fs.writeFileSync(f, JSON.stringify(obj)); } catch (e) {}
 }
 
-// 在线表必须是「普通对象」。老数据文件可能是数组（上面那个历史 bug 写坏的），
-// 这里统一纠回来，否则 Object.values() 与 online[id] = ts 都会静默失效。
 function onlineMap() {
   const raw = readJSON(FILES.online, {});
   return raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
@@ -50,9 +66,6 @@ const MIME = {
   '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.ico': 'image/x-icon',
 };
 
-// 客户端随时可能中途断开（关页面、切网络、手机锁屏），此时写 socket 会抛错。
-// 必须在这里就地吞掉，否则会升级成 uncaughtException 把整个进程带走——
-// 表现就是「一个人用过之后，所有人都进不来了」。
 function safeWrite(res, code, headers, body) {
   if (res.writableEnded || res.destroyed) return;
   try {
@@ -74,7 +87,6 @@ function readBody(req) {
     const finish = (v) => { if (!done) { done = true; resolve(v); } };
     req.on('data', (c) => {
       data += c;
-      // 超限直接断开；这里必须 resolve，否则这个请求会永远挂住。
       if (data.length > 512 * 1024) { finish({}); req.destroy(); }
     });
     req.on('end', () => { try { finish(data ? JSON.parse(data) : {}); } catch (e) { finish({}); } });
@@ -83,7 +95,7 @@ function readBody(req) {
   });
 }
 
-// 预置几条"学长学姐"的数据，让排行榜一开始就有人气（可自行删除 data/leaderboard.json）
+// 预置几条“学长学姐”数据，当 Supabase 排行榜为空时展示用（不会写入数据库）
 const SEED = [
   { id: 'seed1', name: '2025届·何学长', score: 686, ending: '985上岸 · 中山大学', track: '物理类', ts: 1730000000000 },
   { id: 'seed2', name: '2025届·王学姐', score: 655, ending: '985上岸 · 华南理工大学', track: '历史类', ts: 1730000000000 },
@@ -94,15 +106,12 @@ const SEED = [
 ];
 
 const server = http.createServer(async (req, res) => {
-  // 每个请求都挂上 error 监听：Node 里「没人监听的 error 事件」会被抛成未捕获异常。
-  // 客户端中途断开是常态（关页面、切 WiFi、锁屏），绝不能因此让进程退出。
   req.on('error', () => {});
   res.on('error', () => {});
   res.on('close', () => {});
   try {
     await handleRequest(req, res);
   } catch (e) {
-    // 任何一个请求出错都不许把进程带崩——否则第一个人踩到坑，后面所有人都进不来。
     console.error('[request error]', req.method, req.url, e && (e.stack || e.message || e));
     safeWrite(res, 500, { 'Content-Type': 'text/plain; charset=utf-8' }, '500 Internal Server Error');
   }
@@ -122,9 +131,7 @@ async function handleRequest(req, res) {
   const url = new URL(req.url, `http://localhost:${PORT}`);
   const p = url.pathname;
 
-  // ---------- 下面是你原本的 API 代码，保持原样，不要动！ ----------
   // ---------- API ----------
-  // 存活探针：uptime 一直增长说明进程没重启过；归零就说明崩过。
   if (p === '/api/health') {
     return json(res, 200, {
       ok: true,
@@ -140,7 +147,7 @@ async function handleRequest(req, res) {
     const online = onlineMap();
     const now = Date.now();
     const count = Object.values(online).filter((t) => now - t < 90 * 1000).length;
-    return json(res, 200, { ok: true, app: 'xiangxian-life-sim', online: count });
+    return json(res, 200, { ok: true, app: 'guanzhong-life-sim', online: count });
   }
 
   if (p === '/api/heartbeat') {
@@ -157,41 +164,88 @@ async function handleRequest(req, res) {
     return json(res, 200, { ok: false });
   }
 
+  // ---------- 全校动态（Supabase） ----------
   if (p === '/api/feed' && req.method === 'GET') {
-    const feed = readJSON(FILES.feed, []);
-    return json(res, 200, { ok: true, feed: feed.slice(-30).reverse() });
+    try {
+      const feed = await supabase('feed?select=*&order=ts.desc&limit=30');
+      return json(res, 200, { ok: true, feed });
+    } catch (e) {
+      console.error('[feed GET]', e.message);
+      return json(res, 200, { ok: true, feed: [] });
+    }
   }
 
   if (p === '/api/feed' && req.method === 'POST') {
     const b = await readBody(req);
     if (!b.name || !b.text) return json(res, 400, { ok: false });
-    const feed = readJSON(FILES.feed, []);
-    feed.push({ name: String(b.name).slice(0, 16), text: String(b.text).slice(0, 60), icon: String(b.icon || '📢').slice(0, 4), ts: Date.now() });
-    writeJSON(FILES.feed, feed.slice(-80));
-    return json(res, 200, { ok: true });
+    try {
+      await supabase('feed', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: String(b.name).slice(0, 16),
+          text: String(b.text).slice(0, 60),
+          icon: String(b.icon || '📢').slice(0, 4),
+          ts: Date.now(),
+        }),
+      });
+      return json(res, 200, { ok: true });
+    } catch (e) {
+      console.error('[feed POST]', e.message);
+      return json(res, 500, { ok: false });
+    }
   }
 
+  // ---------- 全校排行榜（Supabase） ----------
   if (p === '/api/leaderboard' && req.method === 'GET') {
-    let lb = readJSON(FILES.leaderboard, null);
-    if (!lb || !lb.length) { lb = SEED; writeJSON(FILES.leaderboard, lb); }
-    lb.sort((a, b) => b.score - a.score);
-    return json(res, 200, { ok: true, board: lb.slice(0, 30) });
+    try {
+      const board = await supabase('leaderboard?select=*&order=score.desc&limit=30');
+      if (board && board.length) return json(res, 200, { ok: true, board });
+      return json(res, 200, { ok: true, board: SEED });
+    } catch (e) {
+      console.error('[leaderboard GET]', e.message);
+      return json(res, 200, { ok: true, board: SEED });
+    }
   }
 
   if (p === '/api/leaderboard' && req.method === 'POST') {
     const b = await readBody(req);
     if (!b.id || !b.name || typeof b.score !== 'number') return json(res, 400, { ok: false });
-    let lb = readJSON(FILES.leaderboard, []);
-    if (!lb.length) lb = SEED;
-    const old = lb.find((e) => e.id === b.id);
-    if (old) { if (b.score > old.score) Object.assign(old, b); }
-    else lb.push(b);
-    writeJSON(FILES.leaderboard, lb.slice(0, 200));
-    lb.sort((a, b) => b.score - a.score);
-    const rank = lb.findIndex((e) => e.id === b.id) + 1;
-    return json(res, 200, { ok: true, rank });
+    try {
+      const existing = await supabase(`leaderboard?id=eq.${encodeURIComponent(b.id)}&select=*`);
+      if (existing && existing.length) {
+        await supabase(`leaderboard?id=eq.${encodeURIComponent(b.id)}`, {
+          method: 'PATCH',
+          body: JSON.stringify({
+            score: b.score,
+            ending: b.ending || '',
+            track: b.track || '',
+            ts: Date.now(),
+            name: String(b.name).slice(0, 16),
+          }),
+        });
+      } else {
+        await supabase('leaderboard', {
+          method: 'POST',
+          body: JSON.stringify({
+            id: b.id,
+            name: String(b.name).slice(0, 16),
+            score: b.score,
+            ending: b.ending || '',
+            track: b.track || '',
+            ts: Date.now(),
+          }),
+        });
+      }
+      const all = await supabase('leaderboard?select=id&order=score.desc');
+      const rank = all.findIndex((e) => e.id === b.id) + 1;
+      return json(res, 200, { ok: true, rank });
+    } catch (e) {
+      console.error('[leaderboard POST]', e.message);
+      return json(res, 500, { ok: false });
+    }
   }
 
+  // ---------- 云存档（保留本地文件） ----------
   if (p === '/api/save' && req.method === 'POST') {
     const b = await readBody(req);
     if (!b.id || !b.state) return json(res, 400, { ok: false });
@@ -218,26 +272,19 @@ async function handleRequest(req, res) {
     }
     safeWrite(res, 200, {
       'Content-Type': MIME[path.extname(full)] || 'application/octet-stream',
-      // 游戏改得勤，禁掉缓存，避免浏览器把新旧 index.html / game.js 混着用导致白屏。
       'Cache-Control': 'no-store, must-revalidate',
     }, buf);
   });
 }
 
 server.on('error', (e) => { console.error('[server error]', e && (e.stack || e.message || e)); });
-
-// 畸形请求（扫描器/坏客户端）不要让它变成未捕获异常。
 server.on('clientError', (err, socket) => {
-  try { socket.end('HTTP/1.1 400 Bad Request\r\n\r\n'); } catch (e) { /* 已经断了 */ }
+  try { socket.end('HTTP/1.1 400 Bad Request\r\n\r\n'); } catch (e) {}
 });
 
-// 反向代理会复用 keep-alive 连接。Node 默认 5s 就把它关掉，代理若仍拿这条已死的连接
-// 转发下一个访客的请求，就会 502——现象正是「一个人用过之后，别人打不开」。
-// 把超时设得比代理长，避免这个竞态。
 server.keepAliveTimeout = 65000;
 server.headersTimeout = 66000;
 
-// 兜底：异步异常只记录，不让 Node 直接退出（Node 15+ 默认会因未处理拒绝而终止）。
 process.on('unhandledRejection', (e) => {
   console.error('[unhandledRejection]', e && (e.stack || e.message || e));
 });
@@ -250,6 +297,6 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log('  莞中生活 · 校园生活模拟器 服务器已启动');
   console.log(`  本机游玩:  http://localhost:${PORT}`);
   console.log(`  局域网联机: http://<本机IP>:${PORT}  (同学可连)`);
-  console.log('  数据保存在 ./data/ 目录，可随时删除重置');
+  console.log('  排行榜 / 全校动态 已接入 Supabase，数据永久保存');
   console.log('==============================================');
 });

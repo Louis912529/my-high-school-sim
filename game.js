@@ -39,6 +39,7 @@ let CFG = {
   track: null,
   name: '',
   // 入学的学年起始年，开局时按真实日期定死，存档一起带走（否则跨年读档日期会漂）。
+  loveMode: 'full',   // 感情倾向：full=纯爱, half=有情, none=无意
   startYear: null,
 };
 
@@ -851,6 +852,7 @@ bindRow('#in-residency');
 bindRow('#in-class');
 bindRow('#in-track');
 bindRow('#in-diff');
+bindRow('#in-love-mode');
 
 // 难度说明：切换时同步提示文案，避免玩家不知道「炼狱」难在哪。
 function refreshDifficultyNote() {
@@ -901,6 +903,8 @@ $('#btn-begin').addEventListener('click', () => {
   CFG.difficulty = diffRow ? diffRow.dataset.v : CFG.difficulty || 'hard';
   setDifficulty(CFG.difficulty);
   startSemester();
+  const loveModeRow = $('#in-love-mode .selected');
+  CFG.loveMode = loveModeRow ? loveModeRow.dataset.v : 'full';
 });
 
 /* ---------------- 高一下选科 ---------------- */
@@ -1216,7 +1220,11 @@ function loveQuotaReady() {
   if (!q || q.tokens < LOVE_QUOTA_COST) return false;
   // 配额攒满必须用掉，否则长期占比会掉到 1/3 以下。
   if (q.tokens >= LOVE_QUOTA_CAP) return true;
-  return chance(LOVE_DAILY_CHANCE);
+  // 根据感情倾向调整日常恋爱内容出现的概率
+  let chanceVal = LOVE_DAILY_CHANCE;
+  if (CFG.loveMode === 'half') chanceVal *= 0.5;   // 有情：频率减半
+  if (CFG.loveMode === 'none') return false;        // 无意：不触发日常恋爱
+  return chance(chanceVal);
 }
 // 恋爱占比是否已经超过 1/3（即 恋爱 > 校园 / 2）。
 // 必推的遇见 / 节日 / 主线不受配额限制，短局里容易扎堆，
@@ -2475,6 +2483,7 @@ function addAff(delta) {
 function buildLoveMeetEvent() {
   const L = S && S.love;
   if (!L || L.met) return null;
+  if (CFG.loveMode === 'none') return null;   // 无意：直接不遇见
   if (S.round < 2) return null;
   const chars = loveChars();
   const body = loveIsBoy()

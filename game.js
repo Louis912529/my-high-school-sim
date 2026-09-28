@@ -4146,7 +4146,7 @@ function netPlayerId() {
 }
 
 async function api(pathname, opts) {
-  const res = await fetch(pathname, Object.assign({
+  const res = await fetch('my-high-school-sim-production.up.railway.app' + pathname, Object.assign({
     headers: { 'Content-Type': 'application/json' },
     cache: 'no-store',
   }, opts || {}));

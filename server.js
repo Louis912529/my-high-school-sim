@@ -118,7 +118,7 @@ async function handleRequest(req, res) {
     return;
   }
 
-  // ... 下面原有的代码保持原样，不要动
+  // 下面这是原有的代码，不要动
   const url = new URL(req.url, `http://localhost:${PORT}`);
   const p = url.pathname;
   // ...

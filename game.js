@@ -4146,7 +4146,10 @@ function netPlayerId() {
 }
 
 async function api(pathname, opts) {
-  const res = await fetch('my-high-school-sim-production.up.railway.app' + pathname, Object.assign({
+  // 这里填你的 Railway 后端地址（注意：一定要带 https://，最后不要加斜杠 /）
+  const API_BASE = 'https://my-high-school-sim-production.up.railway.app';
+  
+  const res = await fetch(API_BASE + pathname, Object.assign({
     headers: { 'Content-Type': 'application/json' },
     cache: 'no-store',
   }, opts || {}));

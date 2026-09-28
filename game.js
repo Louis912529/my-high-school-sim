@@ -403,12 +403,12 @@ function trackStudyPenaltyLabel() {
 
 function mainEffects(act) {
   const level = DIFFICULTY.level;
-  // 睡眠优先：睡眠收益从 12 改成 9
-  if (act === 'sleep') return { sleep: 9 - level, social: -(2 + level), study: -(3 + level) };
-  // 社交优先：社交收益从 10 改成 7
-  if (act === 'social') return { sleep: -(3 + level), social: 7 - level, study: -(2 + level) };
-  // 学习优先：学习收益从 10 改成 7（Math.max(2, ...) 是为了防止低难度下扣成负数）
-  const studyGain = Math.max(2, 7 - level - trackStudyPenalty());
+  // 连续专注同一件事会疲劳：每连续一次收益 ×0.8，最低 40%
+  const streak = S ? (S[act + 'Streak'] || 0) : 0;
+  const mul = Math.max(0.4, 1 - streak * 0.2);
+  if (act === 'sleep') return { sleep: Math.round((9 - level) * mul), social: -(2 + level), study: -(3 + level) };
+  if (act === 'social') return { sleep: -(3 + level), social: Math.round((7 - level) * mul), study: -(2 + level) };
+  const studyGain = Math.max(1, Math.round((7 - level - trackStudyPenalty()) * mul));
   return { sleep: -(5 + level), social: -(3 + level), study: studyGain };
 }
 
@@ -1001,6 +1001,10 @@ function newGame() {
     roundInSem: 0,
     // 日常选项：七个时间点循环推进的游标（早读→课间→午饭→放学→晚修→晚修后→周末）。
     dailyIdx: 0,
+    // 连续专注同一件事的计数（用于疲劳递减）
+    sleepStreak: 0,
+    socialStreak: 0,
+    studyStreak: 0,
     sleep: 100,
     sleepBand: 'healthy',
     social: 50,
@@ -1093,28 +1097,60 @@ function showMainChoices() {
     social: mainEffects('social'),
     study: mainEffects('study'),
   };
+
+  // 每轮随机抽 1 个特选，和基础三个选项并列
+  const special = pick(MONTHLY_SPECIALS);
+  const streakHint = (act) => {
+    const s = S[act + 'Streak'] || 0;
+    return s >= 2 ? `<span style="color:#b04a3c;font-size:10px">连续${s + 1}次·收益递减</span>` : '';
+  };
+
   area.innerHTML = `
     <div class="choice-module current-choice-module">
       <div class="module-kicker">本月安排 · ${DIFFICULTY.label}</div>
       <div class="module-context">${hint}　把时间交给哪一件事？</div>
       <div class="choices" id="main-choices">
         <button class="choice-btn" data-act="sleep">
-          <div class="c-top"><span class="choice-key a">😴</span><span class="choice-label">睡眠优先</span></div>
+          <div class="c-top"><span class="choice-key a">😴</span><span class="choice-label">睡眠优先</span>${streakHint('sleep')}</div>
           <div class="fx-row"><span class="fx-pill sleep">睡眠 ${signed(effects.sleep.sleep)}</span><span class="fx-pill social">社交 ${signed(effects.sleep.social)}</span><span class="fx-pill study">学习 ${signed(effects.sleep.study)}</span></div>
         </button>
         <button class="choice-btn" data-act="social">
-          <div class="c-top"><span class="choice-key b">🎉</span><span class="choice-label">社交优先</span></div>
+          <div class="c-top"><span class="choice-key b">🎉</span><span class="choice-label">社交优先</span>${streakHint('social')}</div>
           <div class="fx-row"><span class="fx-pill social">社交 ${signed(effects.social.social)}</span><span class="fx-pill sleep">睡眠 ${signed(effects.social.sleep)}</span><span class="fx-pill study">学习 ${signed(effects.social.study)}</span></div>
         </button>
         <button class="choice-btn" data-act="study">
-          <div class="c-top"><span class="choice-key c">📚</span><span class="choice-label">学习优先</span></div>
+          <div class="c-top"><span class="choice-key c">📚</span><span class="choice-label">学习优先</span>${streakHint('study')}</div>
           <div class="fx-row"><span class="fx-pill study">学习 ${signed(effects.study.study)}</span><span class="fx-pill sleep">睡眠 ${signed(effects.study.sleep)}</span><span class="fx-pill social">社交 ${signed(effects.study.social)}</span></div>
           ${trackStudyPenaltyLabel() ? `<div class="choice-hint">${trackStudyPenaltyLabel()}</div>` : ''}
         </button>
+        <button class="choice-btn" data-act="special" data-special-key="${special.key}">
+          <div class="c-top"><span class="choice-key d">${special.emoji}</span><span class="choice-label">${special.label}</span></div>
+          <div class="fx-row">
+            ${typeof special.fx.sleep === 'number' ? `<span class="fx-pill ${special.fx.sleep >= 0 ? 'sleep' : 'neg'}">睡眠 ${signed(special.fx.sleep)}</span>` : ''}
+            ${typeof special.fx.social === 'number' ? `<span class="fx-pill ${special.fx.social >= 0 ? 'social' : 'neg'}">社交 ${signed(special.fx.social)}</span>` : ''}
+            ${typeof special.fx.study === 'number' ? `<span class="fx-pill ${special.fx.study >= 0 ? 'study' : 'neg'}">学习 ${signed(special.fx.study)}</span>` : ''}
+          </div>
+        </button>
       </div>
     </div>`;
+
   area.querySelectorAll('.choice-btn').forEach((b) => {
-    b.onclick = () => chooseMain(b.dataset.act);
+    b.onclick = () => {
+      const act = b.dataset.act;
+      if (act === 'special') {
+        // 特选的处理：直接结算，不走 chooseMain 的连击逻辑
+        awaitingChoice = false;
+        applyFx(special.fx);
+        logEvent('event', `${special.emoji} ${special.label}`, special.body, special.fx);
+        journal(`· ${special.label}`);
+        // 更新连击计数：选特选会重置所有主选项的连击
+        ['sleep', 'social', 'study'].forEach(k => S[k + 'Streak'] = 0);
+        buildEventQueue();
+        processQueue();
+      } else {
+        chooseMain(act);
+      }
+    };
   });
   scrollLogToEnd();
 }
@@ -1123,6 +1159,11 @@ function chooseMain(act) {
   if (!S || S.ended) return;
   awaitingChoice = false;
   S[act + 'Act'] = (S[act + 'Act'] || 0) + 1;
+  // 更新连续专注计数：选中的 +1，其他两个归零
+  ['sleep', 'social', 'study'].forEach(k => {
+    if (k === act) S[k + 'Streak'] = (S[k + 'Streak'] || 0) + 1;
+    else S[k + 'Streak'] = 0;
+  });
   let fx, title, body;
 
   if (act === 'sleep') {

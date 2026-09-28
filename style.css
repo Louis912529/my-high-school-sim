@@ -394,6 +394,7 @@ button { -webkit-appearance: none; }
 .choice-key.a { background: #6d8faa; }
 .choice-key.b { background: #bb8040; }
 .choice-key.c { background: var(--green-2); }
+.choice-key.d { background: #8b6ba8; }
 .choice-label { color: var(--ink); font-size: 13px; font-weight: 800; line-height: 1.4; }
 .choice-odds { color: var(--orange); font-size: 11px; font-weight: 800; margin-left: 32px; }
 .choice-hint { color: var(--muted); font-size: 10px; margin-left: 32px; line-height: 1.4; }

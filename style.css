@@ -302,9 +302,8 @@ button { -webkit-appearance: none; }
 
 /* ---------- 事件与选项：同一条可滚动剧情流 ---------- */
 .log {
-  /* 固定成独立事件视窗：小一点，但至少保留一张事件卡的可视高度。 */
-  flex: 1 1 0;
-  min-height: 210px;
+  flex: 1 1 auto;          /* 自动撑满上方所有空间 */
+  min-height: 0;           /* 避免被内容顶开 */
   max-height: none;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
@@ -342,7 +341,18 @@ button { -webkit-appearance: none; }
 .fx-pill.neu { background: var(--paper-2); color: var(--muted); }
 /* margin-top: auto 让「本月安排 / 剧情选择」始终贴在剧情流底部：
    日志区变高之后，如果不吸底，模块会浮在中间、下面空出一大块。 */
-.action-area { flex: 0 0 auto; margin-top: auto; padding: 0; }
+.action-area {
+  flex: 0 0 auto;
+  margin-top: auto;
+  padding: 10px 13px 16px;
+  max-height: 35vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  background: var(--paper);
+  border-top: 1px dashed var(--dash);
+  /* 换一个更明显的阴影，让它有“浮在剧情上”的感觉 */
+  box-shadow: 0 -8px 20px rgba(91, 78, 45, 0.12); 
+}
 .choice-module {
   padding: 11px 10px 10px; background: rgba(255,253,247,.88);
   border: 1.5px solid var(--green); border-radius: 11px; box-shadow: var(--shadow);
@@ -398,8 +408,8 @@ button { -webkit-appearance: none; }
 
 /* ---------- 底部校园动态 / 工具 ---------- */
 .footer {
-  flex: 0 0 134px;
-  min-height: 134px;
+  flex: 0 0 auto;          /* 变成自适应高度 */
+  min-height: auto;
   background: var(--paper-3);
   border-top: 1px solid var(--line);
   padding: 8px 11px 10px;

@@ -63,8 +63,8 @@ const DIFFICULTY_PRESETS = Object.freeze({
   hard: Object.freeze({
     key: 'hard',
     level: 1,
-    label: '困难 +1',
-    short: '困难',
+    label: '普通',
+    short: '普通',
     blurb: '考试每 5 轮一次，资源取舍偏紧。',
     examInterval: 5,          // 每 N 轮一次考试
     crisisRecovery: 6,        // 极低睡眠时的强制休整回补
@@ -76,8 +76,8 @@ const DIFFICULTY_PRESETS = Object.freeze({
   hell: Object.freeze({
     key: 'hell',
     level: 2,
-    label: '炼狱 +2',
-    short: '炼狱',
+    label: '困难',
+    short: '困难',
     blurb: '考试每 4 轮一次，属性收益更低，休学更容易，恋爱推进更慢。',
     examInterval: 4,
     crisisRecovery: 3,
@@ -123,7 +123,7 @@ function weekendScheduleForSem(semIdx) {
 }
 function dormLabelForSem(semIdx) {
   if (!isBoarder()) return '走读 · 不吃饭堂';
-  if (CFG.gender === '男') return ` 男生6人间`;
+  if (CFG.gender === '男') return ` 男生宿舍`;
   return `${campusForSem(semIdx)} · 宿舍按年级分配`;
 }
 function residencySummaryForSem(semIdx) {
@@ -483,10 +483,12 @@ function logEvent(kind, title, body, fx, extraHtml, fxLabels) {
   div.innerHTML = html;
   // 事件流采用“上新下旧”：最新事件插到顶部，旧事件依次留在下方；
   // action-area 始终留在最底部，玩家打开选项时不用再翻回去找按钮。
-  const actionArea = $('#action-area');
-  if (actionArea && actionArea.parentNode === log) log.insertBefore(div, actionArea);
-  else log.insertBefore(div, log.firstChild);
-  log.scrollTop = 0;
+  // 新剧情追加到末尾，并滚动到底部看最新内容
+  log.appendChild(div);
+  // 等待浏览器完成渲染，再滚动到底部
+  requestAnimationFrame(() => {
+    log.scrollTop = log.scrollHeight;
+  });
 }
 
 function fxPills(fx, fxLabels) {
@@ -1067,8 +1069,12 @@ function newGame() {
 /* ---------------- 主选择（三属性月度） ---------------- */
 function scrollLogToEnd() {
   const log = $('#log');
-  if (!log) return;
-  requestAnimationFrame(() => { log.scrollTop = log.scrollHeight; });
+  const actionArea = $('#action-area');
+  // 等一下再滚，确保选项区已经渲染完成
+  requestAnimationFrame(() => {
+    if (log) log.scrollTop = log.scrollHeight;          // 剧情区滚到底部
+    if (actionArea) actionArea.scrollTop = 0;            // 选项区滚到顶部
+  });
 }
 
 function showMainChoices() {

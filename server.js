@@ -107,6 +107,7 @@ const server = http.createServer(async (req, res) => {
     safeWrite(res, 500, { 'Content-Type': 'text/plain; charset=utf-8' }, '500 Internal Server Error');
   }
 });
+
 async function handleRequest(req, res) {
   // 添加 CORS 跨域支持
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -118,11 +119,10 @@ async function handleRequest(req, res) {
     return;
   }
 
-  // 下面这是原有的代码，不要动
   const url = new URL(req.url, `http://localhost:${PORT}`);
   const p = url.pathname;
-  // ...
-}
+
+  // ---------- 下面是你原本的 API 代码，保持原样，不要动！ ----------
   // ---------- API ----------
   // 存活探针：uptime 一直增长说明进程没重启过；归零就说明崩过。
   if (p === '/api/health') {

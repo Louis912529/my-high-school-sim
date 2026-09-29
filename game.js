@@ -413,9 +413,19 @@ function mainEffects(act) {
     // 社交优先：睡眠 +1，学习 -2（联动）
     return { sleep: 1, social: Math.round((7 - level) * mul), study: -2 };
   }
-  // 普通班学习收益更低
-  const classPenalty = CFG.className === '普通班' ? 2 : 0;
-  const studyGain = Math.max(1, Math.round((7 - level - trackStudyPenalty() - classPenalty) * mul));
+
+  // 学习收益：基础 + 选科适配度 + 班级特长
+  let studyBonus = 0;
+  // 选科 × 性别适配度
+  if (CFG.gender === '女' && S && S.track === '物理') studyBonus -= 3;
+  if (CFG.gender === '男' && S && S.track === '历史') studyBonus -= 3;
+  // 班级特长：镜堂班 + 物理、容庚班 + 历史 有学习增益
+  if (CFG.className === '镜堂班' && S && S.track === '物理') studyBonus += 2;
+  if (CFG.className === '容庚班' && S && S.track === '历史') studyBonus += 2;
+  // 普通班师资分散，学习收益更低
+  if (CFG.className === '普通班') studyBonus -= 2;
+
+  const studyGain = Math.max(1, Math.round((7 - level + studyBonus) * mul));
   return { sleep: -(5 + level), social: -(3 + level), study: studyGain };
 }
 
@@ -878,9 +888,13 @@ if ($('#in-diff')) {
 // 选科适配度提示：女生学物理 / 男生学历史，学习收益会打折。
 function trackAptitudeNote(track) {
   const t = track || (S && S.track) || CFG.track || '物理';
-  if (CFG.gender === '女' && t === '物理') return '⚠ 女生学物理：选科后「学习优先」的收益会降低（-1）。';
-  if (CFG.gender === '男' && t === '历史') return '⚠ 男生学历史：选科后「学习优先」的收益会降低（-1）。';
-  return '当前性别与这个选科的适配度正常，学习收益不受额外影响。';
+  const parts = [];
+  if (CFG.gender === '女' && t === '物理') parts.push('⚠ 女生学物理：学习收益 -3');
+  if (CFG.gender === '男' && t === '历史') parts.push('⚠ 男生学历史：学习收益 -3');
+  if (CFG.className === '镜堂班' && t === '物理') parts.push('✓ 镜堂班 + 物理：学习收益 +2');
+  if (CFG.className === '容庚班' && t === '历史') parts.push('✓ 容庚班 + 历史：学习收益 +2');
+  if (CFG.className === '普通班') parts.push('⚠ 普通班：学习收益 -2，但社交收益和睡眠收益更好');
+  return parts.length ? parts.join('　') : '当前组合没有额外加成或惩罚。';
 }
 
 // 首选科目（单选）
@@ -1958,11 +1972,11 @@ const DAILY_LORE_NEED = 3;          // 集齐 3 条校史线索解锁「校史�
 
 // 校史秘闻线索（放学后去操场 / 绿瓦楼散步时随机翻到一条）
 const DAILY_LORE_CLUES = [
-  '校史馆最里面那面墙上挂着一张 1985 年的黑白合影，边角写着一行小字：「首届高三（2）班」。',
-  '绿瓦楼后墙有一块被水泥补过的砖，据说当年是学生偷偷刻下的班号，后来被抹掉了。',
-  '校史馆的展柜里放着一只旧铁皮饭盒，标签上写着「1992 · 饭堂改建纪念」。',
-  '绿瓦楼二楼的木地板踩上去会响，据说底下还留着旧礼堂的舞台。',
-  '校史馆角落的登记本上，有一页被人用钢笔写了半句话：「愿后来的人，也在这里留下点什么。」',
+  '一九一九年，北京‘五四’运动消息传到广州，五月十一日下午，广州成立广东中等学校以上学生联合会，东莞中学联合会也成立了，东莞中学学生随即投入到五四运动的洪流中去。——《莞中往事》',
+  '1926年3月28日下午，蒋介石亲临东莞中学视察，发表演说，谈入党意义，赞扬莞中学生革命精神，时任国民党军统帅从在繁忙的军务中拔冗到一所普通中学演讲，并给予高度评价，可见莞中对社会影响之大。——《大革命时期的红色莞中》',
+  '1924——1927年间，中国大地上发生了一场轰轰烈烈的反帝反封建革命战争，历史上称为第一次国内革命战争。国民党改组、东征北伐、四·一二政变等等轰动的历史事件陆续发生，革命旋涡之中的东莞中学，染上浓厚的红色革命色彩。——《莞中往事》',
+  '1924年12月，中国共产党在东莞的第一个党支部在东莞中学成立，莫萃华任首任支部书记。——《大革命时期的红色莞中》',
+  '东莞中学的共产思想始于1923年。孟山公园（现东莞人民公园）南城墙上的风满楼是东莞中学进步学生学习革命理论传播革命思想的地方。——《大革命时期的红色莞中》',
 ];
 
 const DAILY_SLOTS = [
@@ -2068,8 +2082,8 @@ const DAILY_SLOTS = [
     key: 'afternoon',
     title: '🌇 放学之后',
     hint: '晚修前还有一段空档。',
-    body: '下午的课结束，晚修还有一段时间。操场上有跑步的，教室里有写作业的，图书馆亮着灯，校史馆那边一个人都没有。',
-    options: [
+    body: '下午的课结束，晚修还有一段时间。操场上有跑步的，教室里有写作业的，图书馆亮着灯，不时有歌声从男生宿舍传来。',
+    options: [校史馆
       {
         label: '去操场打球 / 跑步', fx: { sleep: 2, study: -2 },
         title: '🌇 操场',
@@ -3970,6 +3984,7 @@ function doEnding() {
     <div class="record-row"><span>难度</span><b>${DIFFICULTY.label}</b></div>
     <div class="record-row"><span>入学 / 高考</span><b>${startYear()} 年 9 月 → ${gaokaoDateLabel()}</b></div>
     <div class="record-row"><span>居住方式</span><b>${CFG.residency} · ${campusForSem(Math.min(S.semIdx, 5))}</b></div>
+    <div class="record-row"><span>选科组合</span><b>${S.track || '—'}类 · ${(S.trackExtra || []).join(' + ') || '—'}</b></div>
     <div class="record-row"><span>期末考试排名</span><b>${rankStr}</b></div>
     <div class="record-row"><span>剧情占比</span><b>恋爱 ${Math.round(loveRatio() * 100)}% · 校园 ${100 - Math.round(loveRatio() * 100)}%</b></div>
     <div class="record-row"><span>恋爱对象</span><b>${L0 && L0.met ? `${L0.name} · ${loveChar().persona}` : '未遇见'}</b></div>

@@ -316,7 +316,8 @@ button { -webkit-appearance: none; }
 }
 .event-card {
   flex: 0 0 auto; padding: 13px 13px;
-  background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--orange);
+  background: rgba(255, 253, 247, .75);   /* 原来是 var(--card)，不透明 */
+  border: 1px solid var(--line); border-left: 4px solid var(--orange);
   border-radius: 10px; box-shadow: var(--shadow); animation: pop .25s ease;
 }
 .event-card.love-card-event { border-left-color: #c88799; background: #fff8f7; }
@@ -325,7 +326,8 @@ button { -webkit-appearance: none; }
 .event-card.good-card { border-left-color: var(--green-2); }
 .event-tag {
   display: inline-block; padding: 2px 7px; border-radius: 99px;
-  background: var(--paper-2); color: var(--muted); border: 1px solid var(--line);
+  background: rgba(244, 240, 225, .55); color: var(--muted);
+  border: 1px solid rgba(215, 208, 185, .7);
   font-size: 10px; margin-bottom: 7px; letter-spacing: .4px;
 }
 .event-title { color: var(--ink); font-size: 16px; font-weight: 900; margin-bottom: 6px; letter-spacing: .3px; }
@@ -333,12 +335,12 @@ button { -webkit-appearance: none; }
 .event-body { color: #53564c; font-size: 13.5px; line-height: 1.75; white-space: pre-line; }
 .fx-row { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
 .fx-pill { padding: 3px 7px; border-radius: 99px; font-size: 11px; font-weight: 800; }
-.fx-pill.sleep { background: #e1eaf0; color: #5e7f94; }
-.fx-pill.social { background: #f8ead6; color: #a66a24; }
-.fx-pill.study { background: #e1ece2; color: #477051; }
-.fx-pill.neg { background: #f4dfe0; color: #a35358; }
-.fx-pill.love { background: #f7e3e7; color: #9c5d70; }
-.fx-pill.neu { background: var(--paper-2); color: var(--muted); }
+.fx-pill.sleep  { background: rgba(225, 234, 240, .5); color: #5e7f94; }
+.fx-pill.social { background: rgba(248, 234, 214, .5); color: #a66a24; }
+.fx-pill.study  { background: rgba(225, 236, 226, .5); color: #477051; }
+.fx-pill.neg    { background: rgba(244, 223, 224, .5); color: #a35358; }
+.fx-pill.love   { background: rgba(247, 227, 231, .5); color: #9c5d70; }
+.fx-pill.neu    { background: rgba(244, 240, 225, .5); color: var(--muted); }
 /* margin-top: auto 让「本月安排 / 剧情选择」始终贴在剧情流底部：
    日志区变高之后，如果不吸底，模块会浮在中间、下面空出一大块。 */
 .action-area {

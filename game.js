@@ -46,8 +46,8 @@ let CFG = {
 // 开局天赋：只给起步属性，不再和恋爱线绑定。
 const TALENT_FX = Object.freeze({
   '学霸胚子': { study: 8 },
-  '社交达人': { social: 15 },
-  '心态大师': { sleep: 15 },
+  '社交达人': { social: 10 },
+  '心态大师': { sleep: 10 },
 });
 
 function talentFx(name) {
@@ -109,6 +109,7 @@ function phoneCatcher() {
 
 function normalizeClassName(name) {
   if (name === '容庚班') return '容庚班';
+  if (name === '普通班') return '普通班';   // ← 新增这一行
   // 兼容修改前的旧存档：原强化班沿用成绩加成，其他班归入镜堂班。
   if (name === '🐑班') return '容庚班';
   return '镜堂班';
@@ -510,6 +511,7 @@ function logEvent(kind, title, body, fx, extraHtml, fxLabels) {
   requestAnimationFrame(() => {
     log.scrollTop = log.scrollHeight;
   });
+  return div;
 }
 
 function fxPills(fx, fxLabels) {
@@ -946,9 +948,9 @@ $('#btn-begin').addEventListener('click', () => {
   const diffRow = $('#in-diff .selected');
   CFG.difficulty = diffRow ? diffRow.dataset.v : CFG.difficulty || 'hard';
   setDifficulty(CFG.difficulty);
-  startSemester();
   const loveModeRow = $('#in-love-mode .selected');
   CFG.loveMode = loveModeRow ? loveModeRow.dataset.v : 'full';
+  startSemester();
 });
 
 /* ---------------- 高一下选科 ---------------- */
@@ -1102,6 +1104,8 @@ function newGame() {
       schoolLore: 0,
       dayPass: false,
       phoneChoiceSem: -1,
+      artShowsSeen: [],
+      artFestivalSeen: [],
     },
     foods: [],
     exams: [],
@@ -1432,7 +1436,7 @@ function buildEventQueue() {
   // 3月 / 5月 / 12月的学校开放日按月份固定触发一次；普通校园事件仍照常保留。
   const openDay = buildOpenDayEvent();
   if (openDay) { QUEUE.push(openDay); loveQuotaTick(); }
-  
+
   // 每学年开始时询问是否带手机
   const phoneChoice = buildPhoneChoiceEvent();
   if (phoneChoice) QUEUE.push(phoneChoice);
@@ -1443,6 +1447,13 @@ function buildEventQueue() {
 
   // 本轮必有的 1 次校园事件，同时给恋爱配额 +1 点收入。
   QUEUE.push(pickEvent());
+    // 高雅艺术进校园：每学年触发一次，三年三种
+  const artShow = buildArtShowEvent();
+  if (artShow) { QUEUE.push(artShow); loveQuotaTick(); }
+
+  // 艺术节：每年 4-5 月触发一次
+  const artFestival = buildArtFestivalEvent();
+  if (artFestival) { QUEUE.push(artFestival); loveQuotaTick(); }
   loveQuotaTick();
 
   // 日常选项：每轮追加一个时间点的小抉择（早读 / 课间 / 午饭 / 放学 / 晚修 / 晚修后 / 周末），
@@ -1514,7 +1525,7 @@ function renderEventChoice(sc) {
   area.innerHTML = `
     <div class="choice-module ${sc.moduleClass || 'event-choice-module'}">
       <div class="module-kicker">${sc.kicker || '剧情选择'}</div>
-      <div class="module-context">${sc.hint || '选一个回应，结果会影响后续三年。'}</div>
+      <div class="module-context">${sc.hint || '该选择可能会影响后面的生活。'}</div>
       <div class="choices" id="event-choices">
         ${sc.options.map((o, i) => `
           <button class="choice-btn" data-i="${i}">
@@ -1988,7 +1999,152 @@ const CAMPUS_EVENTS = [
     }),
   },
 ];
+/* ================================================================
+   高雅艺术进校园 · 三年三种
+   高一芭蕾舞、高二歌剧、高三交响乐，每学年触发一次。
+   恋爱对象如果已经遇见，会根据性格产生不同的反应（不改变数值）。
+   ================================================================ */
+const ART_SHOWS = [
+  {
+    id: 'ballet',
+    yearIdx: 0,
+    title: '🩰 高雅艺术进校园 · 芭蕾舞专场',
+    body: '体育馆的舞台被重新布置过，灯光从头顶打下来，整个场地安静得能听见空调的嗡鸣。\n\n「中央芭蕾舞团」的牌子立在入口处。你找到自己班的位置坐下，周围全是熟悉的面孔——但这一刻，所有人都不太一样了。\n\n灯光暗下去的时候，前排有人回头看了一眼。',
+    fx: { sleep: -1, social: 2, study: 1 },
+    journal: '· 高雅艺术进校园：芭蕾舞',
+    loveReact: {
+      A: 'TA 坐在你前面两排，全程没有回头。散场的时候你才发现，TA 的手一直搭在椅背上，指节因为攥得太紧而发白。',
+      B: '「你看那个跳首席的！腿也太长了吧！」TA 凑过来小声说，呼吸喷在你耳朵上。',
+      C: '「……那个动作，像画里的。」TA 只说了这一句，但整场演出里你注意到 TA 看了你好几次。',
+      D: '「看不懂。」TA 说。但中场休息的时候，你看见 TA 在手机上搜「芭蕾舞 天鹅湖 剧情」。',
+    },
+  },
+  {
+    id: 'opera',
+    yearIdx: 1,
+    title: '🎭 高雅艺术进校园 · 歌剧专场',
+    body: '意大利语的唱腔在体育馆里回荡。你听不懂歌词，但字幕屏上的中文翻译一行行滚过。\n\n有人在打哈欠，有人在拍照。你注意到舞台侧幕那里，有个工作人员一直站着没动。\n\n散场时，前排的同学说「不如去年好看」，但你没接话。',
+    fx: { sleep: -2, social: 1, study: 2 },
+    journal: '· 高雅艺术进校园：歌剧',
+    loveReact: {
+      A: 'TA 在演出结束后没有马上走。你回头的时候，TA 正看着空荡荡的舞台，像在等什么。',
+      B: '「那个女高音！我的天！」散场路上 TA 还在哼调子，哼得完全不在调上。',
+      C: '「……歌词里说，『我的名字，你从未念过』。」TA 忽然说。你问 TA 怎么知道，TA 指了指字幕屏：「刚放过去的。」',
+      D: '「无聊。」但你把节目单落在座位上，TA 帮你捡起来的时候，上面用铅笔划了一行字。',
+    },
+  },
+  {
+    id: 'symphony',
+    yearIdx: 2,
+    title: '🎻 高雅艺术进校园 · 交响乐专场',
+    body: '高三了，这是最后一次高雅艺术进校园。\n\n指挥棒落下的那一刻，整个体育馆像是被什么包住了。你听见低音提琴的声音从脚底升起来，穿过胸腔，到达眼眶。\n\n你旁边的同学在偷偷擦眼睛，假装是打哈欠。',
+    fx: { sleep: -3, social: 2, study: 1 },
+    journal: '· 高雅艺术进校园：交响乐',
+    loveReact: {
+      A: 'TA 全程闭着眼睛。你以为 TA 睡着了，但某个乐章结束的瞬间，你看见 TA 的睫毛湿了。',
+      B: '「你不觉得这个旋律很熟悉吗？」TA 问。你想了想，好像是广播里放过。TA 笑了：「是校歌的变奏。」',
+      C: 'TA 把节目单折成了很小的一块，塞进笔袋里。你后来才知道，那上面有 TA 用铅笔画的你。',
+      D: '「我不懂这个。」TA 开场前说。但散场的时候，TA 是最后几个站起来的。',
+    },
+  },
+];
 
+function buildArtShowEvent() {
+  if (!S || !S.flags) return null;
+  if (!S.flags.artShowsSeen || !Array.isArray(S.flags.artShowsSeen)) S.flags.artShowsSeen = [];
+
+  const yearIdx = Math.floor(S.semIdx / 2); // 0=高一、1=高二、2=高三
+  const show = ART_SHOWS[yearIdx];
+  if (!show) return null;
+  if (S.flags.artShowsSeen.includes(show.id)) return null;
+  // 只在每学年第一个学期触发一次（semIdx 0 / 2 / 4）
+  if (S.semIdx % 2 !== 0) return null;
+  // 学期前半段触发，避免期末突然出现
+  if (S.roundInSem > monthsInSem() / 2) return null;
+
+  const loveLine = (S.love && S.love.met && show.loveReact)
+    ? `\n\n${show.loveReact[S.love.char] || ''}`
+    : '';
+
+  return {
+    t: 'text',
+    kind: 'event',
+    title: show.title,
+    body: show.body + loveLine,
+    fx: show.fx,
+    journal: show.journal,
+    onPick: () => { S.flags.artShowsSeen.push(show.id); },
+  };
+}
+/* ================================================================
+   校园艺术节 · 每年一次
+   高一/高二/高三各一次，4-5月触发。
+   选项覆盖：话剧（雷雨/哈姆雷特/红楼梦轮换）、歌手大赛、科技节、旁观。
+   ================================================================ */
+const ART_FESTIVAL_PLAYS = ['《雷雨》', '《哈姆雷特》', '《红楼梦》'];
+
+function buildArtFestivalEvent() {
+  if (!S || !S.flags) return null;
+  if (!Array.isArray(S.flags.artFestivalSeen)) S.flags.artFestivalSeen = [];
+
+  const yearIdx = Math.floor(S.semIdx / 2);
+  if (yearIdx > 2) return null;
+  if (S.flags.artFestivalSeen.includes(yearIdx)) return null;
+
+  const { month } = calendarOf(S.round);
+  if (month !== 4 && month !== 5) return null;
+  if (S.roundInSem < monthsInSem() * 0.3 || S.roundInSem > monthsInSem() * 0.7) return null;
+
+  const playName = ART_FESTIVAL_PLAYS[yearIdx] || ART_FESTIVAL_PLAYS[0];
+  const lovePresent = S.love && S.love.met;
+
+  return {
+    t: 'choice',
+    intro: {
+      kind: 'event',
+      title: '🎪 校园艺术节',
+      body: `四月末，教学楼的走廊上贴满了艺术节的海报。\n\n今年的节目单很长：有话剧${playName}的班级展演，有校园歌手大赛的初赛，还有科技节的作品展示。\n\n你站在海报前面看了一会儿——你想参与哪个？${lovePresent ? '\n\n（TA 也在看海报，目光落到同一张纸上的时候，你们谁也没说话。）' : ''}`,
+    },
+    options: [
+      {
+        label: `报名话剧${playName}的班级角色选拔`,
+        fx: { social: 4, study: 1, sleep: -3 },
+        kind: 'event',
+        title: `🎭 话剧${playName}`,
+        text: `你被分到了一个台词不多的角色——但每一句都要在台上大声说出来。排练的时候你忘词了两次，第三次终于把整段顺了下来。\n\n演出那天，台下坐着全校的人。你站在幕布后面，听见报幕的声音，手心全是汗。\n\n灯光亮起的时候，你往观众席扫了一眼——有人坐在第三排正中间的位置。`,
+        journal: `· 艺术节：参演话剧${playName}`,
+        onPick: () => { S.flags.artFestivalSeen.push(yearIdx); },
+      },
+      {
+        label: '报名校园歌手大赛',
+        fx: { social: 5, sleep: -2, study: -1 },
+        kind: 'event',
+        title: '🎤 校园歌手大赛',
+        text: '初赛在音乐教室进行，评委是三个音乐老师和学生会主席。你唱到副歌的时候破了一个音，但没人笑。\n\n复赛是在体育馆，台下坐了半个年级。你握着话筒，发现手在抖。',
+        journal: '· 艺术节：校园歌手大赛',
+        onPick: () => { S.flags.artFestivalSeen.push(yearIdx); },
+      },
+      {
+        label: '参与科技节的作品展',
+        fx: { study: 3, social: 1, sleep: -2 },
+        kind: 'event',
+        title: '🔬 科技节作品展',
+        text: '你和同桌做了一个简单的电路模型，放在展台上。旁边那组做的是机器人，围观的人明显更多。\n\n但你蹲在自己的展位后面，看着模型上的小灯泡亮起来，觉得也还行。',
+        journal: '· 艺术节：科技节作品展',
+        onPick: () => { S.flags.artFestivalSeen.push(yearIdx); },
+      },
+      {
+        label: '不参与，坐在观众席看别人的表演',
+        fx: { sleep: 2, social: 1, study: -1 },
+        kind: 'event',
+        title: '🪑 观众席',
+        text: '你选择了最安全的位置——观众席。\n\n但你记得很清楚：那一年的校园歌手大赛冠军，唱到最后一句的时候，声音是哑的。全场都在鼓掌。',
+        journal: '· 艺术节：观众',
+        onPick: () => { S.flags.artFestivalSeen.push(yearIdx); },
+      },
+    ],
+  };
+}
 /* pickEvent：choice 事件先展示说明卡，再挂选项 */
 function pickEvent() {
   const eligible = CAMPUS_EVENTS.filter((event) => !event.condition || event.condition());
@@ -2529,6 +2685,7 @@ function newLoveState() {
     cold: 0,             // 连续冷落
     peakAff: 0,          // 历史最高好感
     seen: {},            // 已触发的剧情事件
+    keepsakes: [],       // 信物：每个关键事件留下的实物
     flags: {},           // 恋爱线杂项（生日月份等）
   };
 }
@@ -2654,7 +2811,21 @@ function addAff(delta) {
   // 恋人状态一旦确认，就不会因为一次负面事件被自动撤销——只有分手事件能解除。
   L.active = L.confessed ? L.aff > 30 : st === 5;
   if (st > prev) {
-    logEvent('love', '💗 关系变化', affJumpAt(st) || affStageAt(st).desc, null);
+    // 不直接播报"关系推进到 X 阶段"，而是给一句留白 + 一个动作细节，
+    // 让玩家自己去判断发生了什么（参考《欲晓》《只为她荒唐》的写法）。
+    const hint = affJumpAt(st) || affStageAt(st).desc;
+    const detail = loveIsBoy()
+      ? pick([
+          `${loveTa()}说话的时候没看你，但手一直搭在你椅背上。`,
+          `你没注意到的是——${loveTa()}今天坐得比平时近了一拳。`,
+          `${loveTa()}走的时候，把你的杯子往桌子里面推了推。`,
+        ])
+      : pick([
+          `${loveTa()}今天叫你的时候，尾音比平时轻。`,
+          `你把东西递给${loveTa()}的时候，${loveTa()}的手指多停了一秒。`,
+          `${loveTa()}没有说话，但你回头的时候，${loveTa()}在看你。`,
+        ]);
+    logEvent('love', '💗 关系变化', `${hint}\n\n${detail}`, null);
     journal(`· 关系推进：${affStageAt(st).tag}`);
     if (loveIsBoy()) journal(`· ${AFF_RISE_BOY}`);
   } else if (st < prev) {
@@ -2738,7 +2909,10 @@ function loveEvent01() {
         text: lp({ A: '「……是我的错。」TA 低下头，声音很轻。', B: '「哈？明明是你挡路！」TA 瞪了你一眼，走了。', C: '「……对不起。」TA 把书摞好，抱起来走了。', D: '「你才要看路！笨蛋。」' }),
         journal: '· 作业本：玩笑开过头' },
     ],
-    onResolve: () => { S.love.seen.e01 = true; },
+    onResolve: () => {
+      S.love.seen.e05 = true;
+      if (!S.love.keepsakes.includes('那把不够大的伞')) S.love.keepsakes.push('那把不够大的伞');
+    },
   };
 }
 
@@ -3287,7 +3461,12 @@ function boyEvent09() {
         },
       },
     ],
-    onResolve: () => { if (succeeded) S.love.seen.e09 = true; },
+    onResolve: () => {
+      if (succeeded) {
+        S.love.seen.e09 = true;
+        if (!S.love.keepsakes.includes('第二颗扣子')) S.love.keepsakes.push('第二颗扣子');
+      }
+    },
   };
 }
 
@@ -3331,18 +3510,66 @@ function buildLoveStoryEvent() {
 
 /* ---------------- 日常闲聊 / 手机消息 ---------------- */
 const LOVE_CHAT = {
-  '教室 · 早晨': ['「早。」（TA 点了点头，没有看你）', '「早，今天第一节是数学吧。」', '「给你留了位置，靠窗那个。」', '「……你今天来得比平时早。」（TA 把书往旁边挪了挪）', '「早啊。昨晚睡得好吗？」（TA 把手里的牛奶推到你桌上）'],
-  '走廊 · 课间': ['「借过。」', '「你也去办公室？」', '「等一下我，我跟你一起。」', '「刚才……你身边那个女生是谁？」', '「放学等我，别又自己先走了。」'],
-  '食堂 · 午餐': ['「……」TA 端着餐盘走开了', '「那个菜不好吃，别打。」', '「我这儿有多的一双筷子。」', '「你尝一口这个。」（TA 把餐盘往你那边推了推）', '「今天我来打饭，你坐着。」'],
-  '放学 · 校门口': ['「再见。」', '「明天见。」', '「你走哪边？顺路的话……」', '「我等你。」（TA 说得很轻，像是怕被人听见）', '「今天绕远一点回去吧，我不想那么快到家。」'],
+  '教室 · 早晨': [
+    { t: '「早。」（TA 点了点头，没有看你）', minAff: 0 },
+    { t: '「早，今天第一节是数学吧。」', minAff: 20 },
+    { t: '「给你留了位置，靠窗那个。」', minAff: 40 },
+    { t: '「……你今天来得比平时早。」（TA 把书往旁边挪了挪）', minAff: 55 },
+    { t: '「早啊。昨晚睡得好吗？」（TA 把手里的牛奶推到你桌上）', minAff: 70 },
+  ],
+  '走廊 · 课间': [
+    { t: '「借过。」', minAff: 0 },
+    { t: '「你也去办公室？」', minAff: 25 },
+    { t: '「等一下我，我跟你一起。」', minAff: 45 },
+    { t: '「刚才……你身边那个女生是谁？」', minAff: 65 },
+    { t: '「放学等我，别又自己先走了。」', minAff: 80 },
+  ],
+  '食堂 · 午餐': [
+    { t: '「……」TA 端着餐盘走开了', minAff: 0 },
+    { t: '「那个菜不好吃，别打。」', minAff: 25 },
+    { t: '「我这儿有多的一双筷子。」', minAff: 45 },
+    { t: '「你尝一口这个。」（TA 把餐盘往你那边推了推）', minAff: 65 },
+    { t: '「今天我来打饭，你坐着。」', minAff: 80 },
+  ],
+  '放学 · 校门口': [
+    { t: '「再见。」', minAff: 0 },
+    { t: '「明天见。」', minAff: 20 },
+    { t: '「你走哪边？顺路的话……」', minAff: 45 },
+    { t: '「我等你。」（TA 说得很轻，像是怕被人听见）', minAff: 65 },
+    { t: '「今天绕远一点回去吧，我不想那么快到家。」', minAff: 80 },
+  ],
 };
 
 // 男生线闲聊库：把「食堂 · 午餐」换成「球场 · 课间」，其余场合对齐女生线
 const LOVE_CHAT_BOY = {
-  '教室 · 早晨': ['「让一下。」（TA 绕过你的桌子，没抬眼）', '「作业，借我看一眼。」', '「给你留了位置，后边。前面太吵。」', '「你今天来得挺早。」（TA 说完就把头转向窗外）', '「早饭在桌上。别说不好吃。」'],
-  '走廊 · 课间': ['「借过。」', '「你也上这节课？」', '「等你——不是，刚好碰上。」', '「刚才跟你说话的那个是几班的。」', '「放学别自己走。等我。」'],
-  '球场 · 课间': ['「让让。」', '「你会打吗？过来。」', '「传球！……算了，你跑位太慢。」', '「今天不打了。」（TA 把球收起来，你问为什么，TA 说「不想打」）', '「你今天看我打球了吗？……哦，那你以后都来看。」'],
-  '放学 · 校门口': ['「我先走了。」', '「明天见。」', '「顺路，一起。」', '「你走快点。」（然后自己放慢了）', '「今天绕远点吧，回去也没什么。」'],
+  '教室 · 早晨': [
+    { t: '「让一下。」（TA 绕过你的桌子，没抬眼）', minAff: 0 },
+    { t: '「作业，借我看一眼。」', minAff: 20 },
+    { t: '「给你留了位置，后边。前面太吵。」', minAff: 40 },
+    { t: '「你今天来得挺早。」（TA 说完就把头转向窗外）', minAff: 55 },
+    { t: '「早饭在桌上。别说不好吃。」', minAff: 70 },
+  ],
+  '走廊 · 课间': [
+    { t: '「借过。」', minAff: 0 },
+    { t: '「你也上这节课？」', minAff: 25 },
+    { t: '「等你——不是，刚好碰上。」', minAff: 45 },
+    { t: '「刚才跟你说话的那个是几班的。」', minAff: 65 },
+    { t: '「放学别自己走。等我。」', minAff: 80 },
+  ],
+  '球场 · 课间': [
+    { t: '「让让。」', minAff: 0 },
+    { t: '「你会打吗？过来。」', minAff: 25 },
+    { t: '「传球！……算了，你跑位太慢。」', minAff: 45 },
+    { t: '「今天不打了。」（TA 把球收起来，你问为什么，TA 说「不想打」）', minAff: 65 },
+    { t: '「你今天看我打球了吗？……哦，那你以后都来看。」', minAff: 80 },
+  ],
+  '放学 · 校门口': [
+    { t: '「我先走了。」', minAff: 0 },
+    { t: '「明天见。」', minAff: 20 },
+    { t: '「顺路，一起。」', minAff: 45 },
+    { t: '「你走快点。」（然后自己放慢了）', minAff: 65 },
+    { t: '「今天绕远点吧，回去也没什么。」', minAff: 80 },
+  ],
 };
 
 function loveChatTable() { return loveIsBoy() ? LOVE_CHAT_BOY : LOVE_CHAT; }
@@ -3371,7 +3598,10 @@ function buildLoveChatEvent() {
   const st = clamp(L.stage, 1, 5);
   const table = loveChatTable();
   const place = pick(Object.keys(table));
-  const line = table[place][st - 1];
+  const pool = table[place];
+  // 按当前好感筛选可用台词，再随机抽一条；池子为空时退回最低门槛那条
+  const available = pool.filter((item) => L.aff >= (item.minAff || 0));
+  const line = (available.length ? pick(available) : pool[0]).t;
   // 男生线成就「绕远的那条路」：把「顺路」走了三个学期
   if (loveIsBoy() && place === '放学 · 校门口' && st >= 3) {
     S.flags.boyWalks = (S.flags.boyWalks || 0) + 1;
@@ -3795,8 +4025,8 @@ function doExam() {
 
   logEvent('exam', tier, `${extra}\n${bandHint}\n\n这场考试之后`, fx);
   // 最新事件现在位于 log 顶部，不能再取 lastElementChild（那是选项区）。
-  const latestEvent = $('#log .event-card');
-  if (latestEvent) latestEvent.insertAdjacentHTML('beforeend', fxPills(fx) + `<div class="result-body" style="margin-top:8px">${rank <= 150 ? '状态不错，节奏找对了。' : rank >= 650 ? '基础在晃，该把重心拉回学习了。' : '不好不坏，继续观察。'}</div>`);
+  const latestEvent = logEvent('exam', tier, `${extra}\n${bandHint}\n\n这场考试之后`, fx);
+  if (latestEvent) latestEvent.insertAdjacentHTML('beforeend', `<div class="result-body" style="margin-top:8px">${rank <= 150 ? '状态不错，节奏找对了。' : rank >= 650 ? '基础在晃，该把重心拉回学习了。' : '不好不坏，继续观察。'}</div>`);
   journal(`· 考试 第 ${rank} 名 · ${profile.label}`);
   checkTitles();
 }
@@ -4067,6 +4297,7 @@ function doEnding() {
     <div class="record-row"><span>发挥失常扣分</span><b>-${gaokao.competitionPenalty} 分（仅高考）</b></div>
     <div class="record-row"><span>强制休学</span><b>${leaveDurationLabel(S.totalLeaveMonths || 0)} · ${S.leaveCount || 0} 次</b></div>
     <div class="record-row"><span>最终结局</span><b>${finalState}</b></div>
+    <div class="record-row"><span>留下的信物</span><b>${(S.love && S.love.keepsakes && S.love.keepsakes.length) ? S.love.keepsakes.join(' · ') : '—'}</b></div>
     <div class="record-row"><span>恋爱成就</span><b>${Object.keys(S.flags.loveMilestones || {}).length} 项</b></div>
   `;
 
@@ -4269,9 +4500,12 @@ function tryRestore() {
       bdaySems: [],
       loveMilestones: {},
       confessions: 0,
+      artShowsSeen: [],
+      artFestivalSeen: [],
       ...(S.flags || {}),
     };
     S.love = migrateLove(S.love);
+    if (!Array.isArray(S.love.keepsakes)) S.love.keepsakes = [];
     if (!Array.isArray(S.flags.valentineSems)) S.flags.valentineSems = [];
     if (!Array.isArray(S.flags.christmasSems)) S.flags.christmasSems = [];
     if (!Array.isArray(S.flags.bdaySems)) S.flags.bdaySems = [];

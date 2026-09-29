@@ -496,3 +496,12 @@ button { -webkit-appearance: none; }
   .journal { height: 33px; min-height: 33px; max-height: 33px; margin-bottom: 5px; }
   .log { min-height: 170px; }
 }
+/* 再选科目（化学/生物/地理/政治）选中状态 */
+.track-card.extra.selected {
+  border-color: var(--orange);
+  background: #fff8ee;
+  box-shadow: 0 0 0 1px rgba(184,117,34,.16);
+}
+.track-card.extra.selected b { color: var(--orange); }
+
+.track-card.extra:hover { border-color: #c6bea6; }

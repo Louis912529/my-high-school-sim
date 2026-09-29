@@ -70,7 +70,7 @@ const DIFFICULTY_PRESETS = Object.freeze({
     examInterval: 5,          // 每 N 轮一次考试
     crisisRecovery: 6,        // 极低睡眠时的强制休整回补
     rankOffset: 8,            // 排名中心额外后移（同样学习属性名次更靠后）
-    gaokaoPenalty: [5, 12],  // 高三竞争：高考实际分数额外扣减区间
+    gaokaoPenalty: [5, 12],  // 发挥失常：高考实际分数额外扣减区间
     leaveChanceMul: 1,        // 休学概率倍率
     affMul: 1,                // 好感增长倍率
   }),
@@ -1051,6 +1051,8 @@ function newGame() {
     roundInSem: 0,
     // 日常选项：七个时间点循环推进的游标（早读→课间→午饭→放学→晚修→晚修后→周末）。
     dailyIdx: 0,
+    // 手机机制：当前学年是否带手机（每学年开始时询问一次）
+    phone: true,
     // 连续专注同一件事的计数（用于疲劳递减）
     sleepStreak: 0,
     socialStreak: 0,
@@ -1099,6 +1101,7 @@ function newGame() {
       dailyMilestones: {},
       schoolLore: 0,
       dayPass: false,
+      phoneChoiceSem: -1,
     },
     foods: [],
     exams: [],
@@ -1382,6 +1385,48 @@ function loveRatio() {
 }
 
 /* ---------------- 事件队列 ---------------- */
+/* ---------------- 手机机制 · 每学年选一次 ---------------- */
+function buildPhoneChoiceEvent() {
+  if (!S) return null;
+  // 只在学年开始时询问：semIdx 0（高一）、2（高二）、4（高三）
+  if (S.semIdx % 2 !== 0) return null;
+  if (S.flags.phoneChoiceSem === S.semIdx) return null;
+  S.flags.phoneChoiceSem = S.semIdx;
+
+  const yearName = ['高一', '高二', '高三'][Math.floor(S.semIdx / 2)];
+
+  return {
+    t: 'choice',
+    kicker: '📱 开学前',
+    hint: `${yearName}开始了，这学年要不要带手机去学校？`,
+    moduleClass: 'event-choice-module',
+    intro: {
+      kind: 'event',
+      title: '📱 手机的取舍',
+      body: `${yearName}要开始了。你把书包整理了一遍，最后在书桌前停下来——手机带还是不带？\n\n带的话，晚修后能刷视频、和家人聊天、拍校园日常；不带的话，上课和自习更专注，宿舍里会安静一点，也少了很多被查的风险。`,
+    },
+    options: [
+      {
+        label: '带手机（保持联系，也能偶尔放松）',
+        fx: { sleep: -2, social: 2 },
+        kind: 'event',
+        title: '📱 把手机装进了书包',
+        text: '你把手机和充电线一起塞进书包夹层。这一年的校园生活，会多出很多本来不会发生的故事。',
+        journal: `· ${yearName}带了手机`,
+        onPick: () => { S.phone = true; },
+      },
+      {
+        label: '不带手机（专注学习，睡得更早）',
+        fx: { sleep: 4, study: 2, social: -2 },
+        kind: 'good',
+        title: '📱 把手机留在了家里',
+        text: '你把手机放回书桌抽屉。走出家门的时候，书包轻了一点，心里也轻了一点。',
+        journal: `· ${yearName}没带手机`,
+        onPick: () => { S.phone = false; },
+      },
+    ],
+  };
+}
 function buildEventQueue() {
   QUEUE = [];
   // 3月 / 5月 / 12月的学校开放日按月份固定触发一次；普通校园事件仍照常保留。
@@ -1564,6 +1609,7 @@ const CAMPUS_EVENTS = [
   },
   {
     t: 'choice',
+    condition: () => S.phone,
     build: () => ({
       title: '手机被缴危机',
       body: '自习课你偷偷刷了会儿视频，后门玻璃上出现一张脸。\n班主任的手已经伸到你桌前：「拿出来。」',
@@ -1632,7 +1678,7 @@ const CAMPUS_EVENTS = [
   },
   {
     t: 'choice',
-    condition: () => isBoarder() && CFG.gender === '男' && S.semIdx < 4,
+    condition: () => isBoarder() && CFG.gender === '男' && S.semIdx < 4 && S.phone,
     build: () => ({
       title: '宿管查手机',
       body: '宿舍的夜巡来了。老魏站在门口，眼神像是能穿过墙皮和被子，专门检查谁还在玩手机。',
@@ -1677,7 +1723,7 @@ const CAMPUS_EVENTS = [
   },
   {
     t: 'choice',
-    condition: () => isBoarder(),
+    condition: () => isBoarder() && S.phone,
     build: () => ({
       title: '插座争夺战',
       body: '宿舍房间没有插座。你的手机只剩 12% 电，今晚还要不要想办法充上？教室和宿舍吹风筒处都有插座，但位置不多。',
@@ -1823,6 +1869,7 @@ const CAMPUS_EVENTS = [
   },
   {
     t: 'choice',
+    condition: () => S.phone,
     build: () => ({
       title: '课堂上的手机',
       body: `老师在讲台上写板书，你的手机在抽屉里亮了一下。年级主任和级长${S.semIdx >= 4 ? '就在走廊巡堂' : '随时可能从后门推门进来'}——这一节课，要不要赌一把？`,
@@ -1848,6 +1895,7 @@ const CAMPUS_EVENTS = [
   },
   {
     t: 'choice',
+    condition: () => S.phone,
     build: () => ({
       title: '晚修的手机',
       body: '晚修教室里只有翻书声和笔尖声。手机在口袋里震了一下，走廊上传来值班老师的脚步声。',
@@ -1911,7 +1959,7 @@ const CAMPUS_EVENTS = [
   },
   {
     t: 'choice',
-    condition: () => isBoarder() && S.semIdx >= 4,
+    condition: () => isBoarder() && S.semIdx >= 4 && S.phone,
     build: () => ({
       title: '高三宿舍的熄灯之后',
       body: '高三在高三楼，宿舍熄灯后的检查松了很多。宿管只在宿舍外转一圈，很少真的上来翻床。你还有半集视频没看完。',
@@ -2265,6 +2313,8 @@ function dailyUseLeavePass() {
 function dailySlotIndex() {
   if (!S) return 0;
   if (typeof S.dailyIdx !== 'number' || !isFinite(S.dailyIdx) || S.dailyIdx < 0) S.dailyIdx = 0;
+  if (typeof S.phone !== 'boolean') S.phone = true;
+  if (typeof S.flags.phoneChoiceSem !== 'number') S.flags.phoneChoiceSem = -1;
   return S.dailyIdx % DAILY_SLOTS.length;
 }
 function advanceDailySlot() {
@@ -3706,7 +3756,7 @@ function examRankForStudy(study) {
   else if (value < 55) center = 610 - (value - 45) * 17;
   else if (value < 70) center = 430 - (value - 55) * 15;
   else center = 180 - (value - 70) * 5.2;
-  // 难度越高，同样的学习属性换来的名次越靠后；高三竞争只影响排名，不直接扣学习属性。
+  // 难度越高，同样的学习属性换来的名次越靠后；发挥失常只影响排名，不直接扣学习属性。
   center += DIFFICULTY.rankOffset;
   // 同样的学习属性到了高三，竞争环境更拥挤，考试名次会更靠后。
   if (S.semIdx >= 4) center += 32;
@@ -3942,7 +3992,7 @@ function computeScore() {
   ), -8, 8);
   const expectedScore = clamp(band.expected + lifestyleAdjustment, band.low, band.high);
 
-  // 高三竞争扣分降低：普通 5~12，困难 10~18
+  // 高三（发挥失常）：普通 5~12，困难 10~18
   const penaltyRange = DIFFICULTY.gaokaoPenalty;
   const competitionPenalty = S.semIdx >= 4 ? rnd(penaltyRange[0], penaltyRange[1]) : 0;
   const finalScore = clamp(expectedScore - competitionPenalty, 200, 750);
@@ -3992,7 +4042,7 @@ function doEnding() {
 
   $('#end-score').textContent = score;
   $('#end-academic').textContent = ac.title;
-  $('#end-academic-desc').textContent = `${gaokaoDateLabel()}，你走进考场。\n\n${ac.desc}\n\n大学结局：${university.tier} · ${university.school}\n${university.desc}\n${volunteerText}\n\n学习档位：${gaokao.bandLabel}\n预计区间：${gaokao.rangeLabel} · 结算基准 ${gaokao.expectedScore} 分\n高三竞争：-${gaokao.competitionPenalty} 分（只计入高考实际分数，学习属性不直接扣减）`;
+  $('#end-academic-desc').textContent = `${gaokaoDateLabel()}，你走进考场。\n\n${ac.desc}\n\n大学结局：${university.tier} · ${university.school}\n${university.desc}\n${volunteerText}\n\n学习档位：${gaokao.bandLabel}\n预计区间：${gaokao.rangeLabel} · 结算基准 ${gaokao.expectedScore} 分\n发挥失常：-${gaokao.competitionPenalty} 分（只计入高考实际分数，学习属性不直接扣减）`;
   $('#end-love-title').textContent = lv.title;
   $('#end-love-desc').textContent = lv.desc;
 
@@ -4010,7 +4060,7 @@ function doEnding() {
     <div class="record-row"><span>大学结局</span><b>${university.tier} · ${university.school}</b></div>
     <div class="record-row"><span>志愿填报</span><b>${volunteerText.replace('志愿取向：', '')}</b></div>
     <div class="record-row"><span>学习属性档位</span><b>${gaokao.bandLabel} · ${gaokao.rangeLabel}</b></div>
-    <div class="record-row"><span>高三竞争扣分</span><b>-${gaokao.competitionPenalty} 分（仅高考）</b></div>
+    <div class="record-row"><span>发挥失常扣分</span><b>-${gaokao.competitionPenalty} 分（仅高考）</b></div>
     <div class="record-row"><span>强制休学</span><b>${leaveDurationLabel(S.totalLeaveMonths || 0)} · ${S.leaveCount || 0} 次</b></div>
     <div class="record-row"><span>最终结局</span><b>${finalState}</b></div>
     <div class="record-row"><span>恋爱成就</span><b>${Object.keys(S.flags.loveMilestones || {}).length} 项</b></div>

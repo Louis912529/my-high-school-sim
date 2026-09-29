@@ -1432,6 +1432,10 @@ function buildEventQueue() {
   // 3月 / 5月 / 12月的学校开放日按月份固定触发一次；普通校园事件仍照常保留。
   const openDay = buildOpenDayEvent();
   if (openDay) { QUEUE.push(openDay); loveQuotaTick(); }
+  
+  // 每学年开始时询问是否带手机
+  const phoneChoice = buildPhoneChoiceEvent();
+  if (phoneChoice) QUEUE.push(phoneChoice);
 
   // 真实节日（元旦 / 春节 / 清明 / 劳动节 / 端午 / 中秋 / 国庆）按真实日期触发。
   const holiday = buildRealHolidayEvent();

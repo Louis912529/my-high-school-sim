@@ -2059,8 +2059,8 @@ function buildArtShowEvent() {
   if (S.flags.artShowsSeen.includes(show.id)) return null;
   // 只在每学年第一个学期触发一次（semIdx 0 / 2 / 4）
   if (S.semIdx % 2 !== 0) return null;
-  // 学期前半段触发，避免期末突然出现
-  if (S.roundInSem > monthsInSem() / 2) return null;
+  // 学期前 1/3 触发，避免期末突然出现；窗口放宽到 1/3 提高首次触发概率
+  if (S.roundInSem > Math.max(1, monthsInSem() / 3)) return null;
 
   const loveLine = (S.love && S.love.met && show.loveReact)
     ? `\n\n${show.loveReact[S.love.char] || ''}`
@@ -2147,8 +2147,22 @@ function buildArtFestivalEvent() {
 }
 /* pickEvent：choice 事件先展示说明卡，再挂选项 */
 function pickEvent() {
-  const eligible = CAMPUS_EVENTS.filter((event) => !event.condition || event.condition());
-  const raw = pick(eligible.length ? eligible : CAMPUS_EVENTS);
+  // 去重：记住最近用过的校园事件下标，下一轮从「没用过」的池子里抽；
+  // 池子被抽空了就整体重置，所以不会出现连续看到同一张卡的情况。
+  if (!S) return null;
+  if (!Array.isArray(S.recentCampus)) S.recentCampus = [];
+  const eligible = CAMPUS_EVENTS.map((e, i) => ({ e, i }))
+    .filter(({ e }) => !e.condition || e.condition());
+  const pool = eligible.filter(({ i }) => !S.recentCampus.includes(i));
+  const source = pool.length ? pool : eligible;
+  if (!source.length) return null;
+  const chosen = pick(source);
+  S.recentCampus.push(chosen.i);
+  // 去重窗口最多覆盖 60% 的事件池，最多 10 条记录
+  const cap = Math.max(3, Math.min(10, Math.floor(eligible.length * 0.6)));
+  while (S.recentCampus.length > cap) S.recentCampus.shift();
+
+  const raw = chosen.e;
   const sc = raw.build();
   if (raw.t === 'choice') {
     // 先输出事件卡，再进入选项
@@ -2256,6 +2270,18 @@ const DAILY_SLOTS = [
           ? { fx: { sleep: -1 }, kind: 'daily', title: '📖 被班干部提醒安静', text: '你们笑得正响，班干部敲了敲你的桌子：「小声点，隔壁班都听见了。」你收敛了两分钟，又没忍住。', journal: '· 课间打闹：被班干部提醒安静' }
           : { fx: { social: 2, sleep: -1 }, kind: 'daily', title: '📖 聊了一整节下课', text: '你们从月考聊到暑假，笑得前排都回头。十分钟过得比一节课还快。', journal: '· 课间：聊天打闹' }),
       },
+      {
+        label: '去小卖部买冰可乐', fx: { social: 1, study: -1 },
+        title: '📖 小卖部',
+        text: '你在小卖部买了一瓶冰可乐，站在树下喝完。上课铃响的时候，剩下的半瓶还没喝完，只能拎回教室。',
+        journal: '· 课间：小卖部冰可乐',
+      },
+      {
+        label: '去走廊上和隔壁班的朋友打招呼', fx: { social: 2, study: -1 },
+        title: '📖 隔壁班串门',
+        text: '你走到隔壁班门口，朋友正好出来。两个人靠着栏杆交换了几条不重要的消息，上课铃就响了。',
+        journal: '· 课间：隔壁班串门',
+      },
     ],
   },
   {
@@ -2283,6 +2309,18 @@ const DAILY_SLOTS = [
         text: '你们在校门口那家小馆子坐下，点了三样分着吃。回到教室的时候，身上还带着一股油烟味。',
         journal: '· 午饭：出校探店',
         onPick: () => { dailyUseLeavePass(); },
+      },
+      {
+        label: '和同桌去天台吃饭', fx: { social: 3, sleep: -2, study: -1 },
+        title: '🍚 天台',
+        text: '你们拎着饭盒爬上天台。风挺大，饭粒被吹得四处跑。好在没人管，也没人催。',
+        journal: '· 午饭：天台吃饭',
+      },
+      {
+        label: '排队买好饭带回宿舍吃', fx: { sleep: 2, social: -1 },
+        title: '🍚 宿舍吃饭',
+        text: '你把饭带回宿舍，边吃边看手机。到点午休铃响，饭刚好吃完。',
+        journal: '· 午饭：宿舍吃饭',
       },
     ],
   },
@@ -2425,6 +2463,24 @@ const DAILY_SLOTS = [
         text: '你睡到中午才起，然后一个人出门走了很久。回来的时候天已经黑了，作业一个字没动，但整个人松了下来。',
         journal: '· 周末：睡觉逛街散心',
         onPick: () => { dailyGrantLeavePass(); },
+      },
+      {
+        label: '和父母出门吃顿饭', fx: { sleep: 2, social: 2, study: -2 },
+        title: '📅 陪家人吃饭',
+        text: '你爸妈难得周末都在家，三个人去楼下那家小饭馆坐了坐。饭桌上聊的不是成绩，是最近哪条街新开了店。',
+        journal: '· 周末：陪家人吃饭',
+      },
+      {
+        label: '一个人在家整理房间、发呆', fx: { sleep: 1, study: -1, social: -1 },
+        title: '📅 一个人在家',
+        text: '你把书桌抽屉里的旧东西全翻出来看了一遍。作业推到大半天后才动了两页，但心里莫名安静。',
+        journal: '· 周末：整理房间发呆',
+      },
+      {
+        label: '去图书馆占座，做一整套卷子', fx: { study: 4, sleep: -3, social: -1 },
+        title: '📅 图书馆占座',
+        text: '你和几个同学约在图书馆，从早上坐到下午。一天下来做了两套理综，中间只出去吃了一碗面。',
+        journal: '· 周末：图书馆做卷子',
       },
     ],
   },
@@ -2896,23 +2952,50 @@ function loveEvent01() {
     intro: {
       kind: 'love',
       title: '📚 走廊上的作业本',
-      body: `你抱着一摞作业本往办公室走，拐角处，一个人影撞了上来。纸页哗啦散了一地。\n\n「……抱歉。」\n\n${ta}蹲下去捡，头发垂下来挡住脸。你注意到${ta}捡得很快，像是想赶紧结束这件事。`,
+      body: `作业本摞得太高，你只能看到前面三米。\n\n拐角处——\n\n一声闷响。纸页散了一地，白花花铺在水泥地砖上，像一层没人扫的雪。\n\n${ta}已经蹲下去了。动作很快。快到你还没反应过来，最近的那几本已经回到了${ta}手里。头发垂下来挡住脸，只看到手在动。\n\n「……抱歉。」\n\n声音很轻。轻到你不确定是不是说给你听的。`,
     },
     options: [
-      { label: '一起蹲下去捡', fx: { aff: 5, social: 1 }, kind: 'love', title: '📚 一起捡',
-        text: lp({ A: '「……谢谢。」TA 抬头看了你一眼，又很快移开。', B: '「哦！谢啦！」TA 把最后一本塞进你怀里，笑得毫无防备。', C: '「……谢谢。」TA 把书递过来的时候，指尖停了一下。', D: '「……我自己会捡。」嘴上这么说，手却没停。' }),
-        journal: '· 作业本：一起捡' },
-      { label: '站着摆手说「没事没事」', fx: { aff: 1 }, kind: 'love', title: '📚 客气了一下',
-        text: lp({ A: '「嗯。」TA 把最后一本递给你，转身走了。', B: '「没事就好！那我先走啦。」', C: '「……嗯，麻烦了。」', D: '「算你识相。」' }),
-        journal: '· 作业本：客气' },
-      { label: '开玩笑：「下次走路看路啊。」', fx: { aff: -3 }, kind: 'love', title: '📚 玩笑开过头',
-        text: lp({ A: '「……是我的错。」TA 低下头，声音很轻。', B: '「哈？明明是你挡路！」TA 瞪了你一眼，走了。', C: '「……对不起。」TA 把书摞好，抱起来走了。', D: '「你才要看路！笨蛋。」' }),
-        journal: '· 作业本：玩笑开过头' },
+      {
+        label: '蹲下去，一起捡',
+        fx: { aff: 5, social: 1 },
+        kind: 'love',
+        title: '📚 一起捡',
+        text: lp({
+          A: '你蹲下去的时候，TA 的手顿了一下。\n\n两个人捡同一本，指尖碰到一起，TA 立刻收回手，让你拿。\n\n站起来的时候 TA 看了你一眼——很快，快到像是没发生。',
+          B: '「哦！谢谢谢谢。」TA 把最后一本拍干净，顺手塞进你怀里，转身就要走。\n\n走了两步又回头补了一句：「下次作业本别摞那么高啊！」',
+          C: '你们一人一边，把本子按页码捡回来。TA 把最后一本递给你的时候，指尖在上面停了一秒。\n\n「……好了。」',
+          D: '「……我自己会捡。」嘴上这么说，手却没停。\n\n你把最后一本递过去，TA 犹豫了一下，才伸手接。',
+        }),
+        journal: '· 作业本：一起捡',
+      },
+      {
+        label: '站着摆手说「没事没事」',
+        fx: { aff: 1 },
+        kind: 'love',
+        title: '📚 客气了一下',
+        text: lp({
+          A: '「嗯。」TA 把最后一本摞好，抱起来，走了。\n\n你站在原地，风从走廊吹进来，纸页的边角翻动了一下。',
+          B: '「没事就好！那我先走啦。」TA 拍了拍手上的灰，挥挥手走了。\n\n你注意到 TA 走的时候脚步比来的时候快。',
+          C: '「……嗯，麻烦了。」TA 低着头，把本子一摞一摞摆正，才抱着走。',
+          D: '「算你识相。」TA 把最后几本塞进你怀里，转身就走，耳朵有点红。',
+        }),
+        journal: '· 作业本：客气',
+      },
+      {
+        label: '「下次走路看路啊。」',
+        fx: { aff: -3 },
+        kind: 'love',
+        title: '📚 玩笑开过头',
+        text: lp({
+          A: '「……是我的错。」TA 低下头，声音很轻。\n\n你想说「开玩笑的」，但 TA 已经抱着书走远了。',
+          B: '「哈？明明是你挡路！」TA 瞪了你一眼，转身就走。\n\n走了几步，你听到 TA 低声骂了一句什么，但听不清。',
+          C: '「……对不起。」TA 把本子摞好，抱起来，没看你。',
+          D: '「你才要看路！笨蛋。」TA 抱着书走了，脚步咚咚的。',
+        }),
+        journal: '· 作业本：玩笑开过头',
+      },
     ],
-    onResolve: () => {
-      S.love.seen.e05 = true;
-      if (!S.love.keepsakes.includes('那把不够大的伞')) S.love.keepsakes.push('那把不够大的伞');
-    },
+    onResolve: () => { S.love.seen.e01 = true; },
   };
 }
 
@@ -2924,18 +3007,48 @@ function loveEvent02() {
     intro: {
       kind: 'love',
       title: '📓 借笔记',
-      body: `你在草稿纸上划掉第三个错误的公式，旁边传来一句很轻的话。\n\n${ta}：「……你昨天那节课的笔记，记了吗？」`,
+      body: `你在草稿纸上划掉第三个错误的公式。笔尖透了两层纸。\n\n旁边传来一句很轻的话。\n\n${ta}：「……你昨天那节课的笔记，记了吗？」\n\n问完这句话，TA 没有立刻看你。目光落在你的草稿纸上，像是要先判断这题你会不会做。`,
     },
     options: [
-      { label: '递过去，还顺手圈出重点', fx: { aff: 8, study: 1 }, kind: 'love', title: '📓 圈了重点',
-        text: lp({ A: '「你这里画的是什么？」TA 指着你圈的地方，第一次主动追问。', B: '「哇，你还标了重点！」TA 凑过来看，肩膀差点撞到你。', C: '「……你圈的地方，和我画的不太一样。」TA 看得很久。', D: '「谁、谁要你圈重点了。」TA 嘴上嫌弃，抄得很认真。' }),
-        journal: '· 借笔记：圈重点' },
-      { label: '递过去，装作不在意', fx: { aff: 4 }, kind: 'love', title: '📓 随手递过去',
-        text: lp({ A: '「谢谢。」TA 翻得很快，像是在赶时间。', B: '「够意思！」', C: '「谢谢……我看完还你。」', D: '「哼，算你有点用。」' }),
-        journal: '· 借笔记：随手' },
-      { label: '「你上课都没听吗？」', fx: { aff: -5 }, kind: 'love', title: '📓 说错话了',
-        text: lp({ A: '「……当我没问。」TA 把手收了回去。', B: '「我听了！我只是没记！」TA 有点急。', C: '「……嗯，没听。」TA 低下头。', D: '「关你什么事。」TA 转过身去。' }),
-        journal: '· 借笔记：说错话' },
+      {
+        label: '递过去，顺手圈出重点',
+        fx: { aff: 8, study: 1 },
+        kind: 'love',
+        title: '📓 圈了重点',
+        text: lp({
+          A: '「你这里画的是什么？」\n\nTA 指着你圈的地方。你抬头的时候 TA 立刻把目光移开，但手指还停在那。\n\n这是 TA 第一次主动追问你。',
+          B: '「哇，你还标了重点！」TA 凑过来，肩膀差点撞到你的胳膊。\n\n你侧开一点，TA 才反应过来自己靠太近，脸红了。',
+          C: 'TA 把笔记翻得很慢，像是每一个圈都要看清楚。\n\n「……你圈的地方，和我画的不太一样。」\n\n「那是因为你上课没听。」你顺口说。TA 没反驳。',
+          D: '「谁、谁要你圈重点了。」\n\n嘴上嫌弃，抄的时候一个圈都没漏。',
+        }),
+        journal: '· 借笔记：圈重点',
+      },
+      {
+        label: '递过去，什么也不说',
+        fx: { aff: 4 },
+        kind: 'love',
+        title: '📓 随手递过去',
+        text: lp({
+          A: '「谢谢。」TA 接过去翻得很快，像是在赶时间。\n\n还你的时候什么都没多说，但折角被抚平了。',
+          B: '「够意思！」TA 一把接过去，翻了两页就皱着眉「嘶」了一声。\n\n「你这字能认全的人，全年级不超过三个吧？」',
+          C: '「谢谢……我看完还你。」TA 把笔记放进书包，按得很平。',
+          D: '「哼，算你有点用。」TA 拿到手的时候嘴角往上翘了一下，自己都没发现。',
+        }),
+        journal: '· 借笔记：随手',
+      },
+      {
+        label: '「你上课都没听吗？」',
+        fx: { aff: -5 },
+        kind: 'love',
+        title: '📓 说错话了',
+        text: lp({
+          A: '「……当我没问。」TA 把手收了回去，笔记推回你桌上，动作很轻。\n\n然后低下头继续做题。',
+          B: '「我听了！我只是没记！」TA 急了，声音不大但语速很快。\n\n「你上课光记笔记才没听课吧？」',
+          C: '「……嗯，没听。」TA 低下头，没有辩解。\n\n你意识到自己说重了。TA 没有听明白你在开玩笑。',
+          D: '「关你什么事。」TA 把脸转过去。\n\n过了一分钟，你又听到 TA 很小声地说：「……本来想问你另一道题的。」',
+        }),
+        journal: '· 借笔记：说错话',
+      },
     ],
     onResolve: () => { S.love.seen.e02 = true; },
   };
@@ -2949,18 +3062,38 @@ function loveEvent03() {
     intro: {
       kind: 'love',
       title: '🍚 食堂拼桌',
-      body: `食堂里空位不多。你端着餐盘，看见${ta}一个人坐在靠窗的角落，对面的椅子空着。`,
+      body: `食堂里空位不多。你端着餐盘在过道里慢慢走，眼睛扫过一排一排桌子。\n\n靠窗的角落，${ta}一个人坐着。对面的椅子空着，上面搭着一件校服外套。\n\nTA 正低头吃饭，没看到你。`,
     },
     options: [
-      { label: '走过去问「这里有人吗」', fx: { aff: 7, social: 2, sleep: -1 }, kind: 'love', title: '🍚 拼桌成功',
-        text: lp({ A: '「……没有。」TA 把书包从椅子上拿开，动作有点急。', B: '「没人没人，坐！」TA 顺手把对面的碗挪开。', C: '「没有。」TA 把餐盘往自己那边收了收，给你让出位置。', D: '「你坐哪不行啊。」TA 说着，还是把书包拿走了。' }),
-        journal: '· 食堂：拼桌' },
-      { label: '隔着两张桌子坐下，不打扰', fx: { aff: 2 }, kind: 'love', title: '🍚 隔了两张桌子',
-        text: `${ta}抬了下头，好像想说什么，最后什么也没说。`,
-        journal: '· 食堂：隔着坐' },
-      { label: '招呼同学一起挤过去，热闹一点', fx: { aff: 0, social: 3 }, kind: 'love', title: '🍚 人多热闹',
-        text: `${ta}笑了笑，但整顿饭没怎么说话。`,
-        journal: '· 食堂：招呼一群人' },
+      {
+        label: '走过去，问一句「这里有人吗」',
+        fx: { aff: 7, social: 2, sleep: -1 },
+        kind: 'love',
+        title: '🍚 拼桌',
+        text: lp({
+          A: '「……没有。」TA 把椅子上的外套收起来，动作有点急。\n\n坐下之后两个人都没说话。但是你听见 TA 的筷子碰碗的声音轻了。',
+          B: '「没人没人，坐！」TA 顺手把对面的碗挪开，还把自己餐盘里的炸鸡夹了一块放你碗里。\n\n「这个好吃，尝尝。」',
+          C: '「没有。」TA 把餐盘往自己那边收了收，给你让出位置。\n\n整顿饭 TA 都没怎么抬过头，但你注意到 TA 吃饭的速度比平时慢。',
+          D: '「你坐哪不行啊。」TA 说着，还是把外套拿走了。\n\n坐下以后 TA 又嘟囔了一句：「……那儿不干净。」',
+        }),
+        journal: '· 食堂：拼桌',
+      },
+      {
+        label: '隔两张桌子坐下，不打扰',
+        fx: { aff: 2 },
+        kind: 'love',
+        title: '🍚 隔了两张桌子',
+        text: `${ta}抬了下头。\n\n隔着两张桌子的距离，你看不清 TA 的表情。TA 好像想说什么，最后什么也没说，低头继续吃饭。\n\n吃完你先走的。路过 TA 桌边的时候，TA 的筷子停了一秒。`,
+        journal: '· 食堂：隔着坐',
+      },
+      {
+        label: '招呼几个同学一起挤过去',
+        fx: { aff: 0, social: 3 },
+        kind: 'love',
+        title: '🍚 人多热闹',
+        text: `一桌人坐下，笑声不断。\n\n${ta}笑了笑，但整顿饭没怎么说话。你偶尔抬头，发现 TA 在看窗外。\n\n走的时候 TA 走得最快。`,
+        journal: '· 食堂：招呼一群人',
+      },
     ],
     onResolve: () => { S.love.seen.e03 = true; },
   };
@@ -3013,7 +3146,10 @@ function loveEvent05() {
         text: lp({ A: '「……你自己等吧。」TA 把伞往怀里抱了抱。', B: '「你过分了啊！」TA 瞪你一眼，跑了。', C: '「……不好笑。」', D: '「你去死吧。」TA 头也不回。' }),
         journal: '· 雨天：玩笑开砸' },
     ],
-    onResolve: () => { S.love.seen.e05 = true; },
+    onResolve: () => {
+      S.love.seen.e05 = true;
+      if (!S.love.keepsakes.includes('那把不够大的伞')) S.love.keepsakes.push('那把不够大的伞');
+    },
   };
 }
 

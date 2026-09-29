@@ -45,9 +45,9 @@ let CFG = {
 
 // 开局天赋：只给起步属性，不再和恋爱线绑定。
 const TALENT_FX = Object.freeze({
-  '学霸胚子': { study: 10 },
-  '社交达人': { social: 10 },
-  '心态大师': { sleep: 10 },
+  '学霸胚子': { study: 8 },
+  '社交达人': { social: 15 },
+  '心态大师': { sleep: 15 },
 });
 
 function talentFx(name) {
@@ -70,7 +70,7 @@ const DIFFICULTY_PRESETS = Object.freeze({
     examInterval: 5,          // 每 N 轮一次考试
     crisisRecovery: 6,        // 极低睡眠时的强制休整回补
     rankOffset: 8,            // 排名中心额外后移（同样学习属性名次更靠后）
-    gaokaoPenalty: [10, 30],  // 高三竞争：高考实际分数额外扣减区间
+    gaokaoPenalty: [5, 12],  // 高三竞争：高考实际分数额外扣减区间
     leaveChanceMul: 1,        // 休学概率倍率
     affMul: 1,                // 好感增长倍率
   }),
@@ -83,7 +83,7 @@ const DIFFICULTY_PRESETS = Object.freeze({
     examInterval: 4,
     crisisRecovery: 3,
     rankOffset: 22,
-    gaokaoPenalty: [18, 42],
+    gaokaoPenalty: [10, 18],
     leaveChanceMul: 1.35,
     affMul: 0.7,
   }),
@@ -403,12 +403,19 @@ function trackStudyPenaltyLabel() {
 
 function mainEffects(act) {
   const level = DIFFICULTY.level;
-  // 连续专注同一件事会疲劳：每连续一次收益 ×0.8，最低 40%
   const streak = S ? (S[act + 'Streak'] || 0) : 0;
   const mul = Math.max(0.4, 1 - streak * 0.2);
-  if (act === 'sleep') return { sleep: Math.round((9 - level) * mul), social: -(2 + level), study: -(3 + level) };
-  if (act === 'social') return { sleep: -(3 + level), social: Math.round((7 - level) * mul), study: -(2 + level) };
-  const studyGain = Math.max(1, Math.round((7 - level - trackStudyPenalty()) * mul));
+
+  if (act === 'sleep') {
+    return { sleep: Math.round((9 - level) * mul), social: -(2 + level), study: -(3 + level) };
+  }
+  if (act === 'social') {
+    // 社交优先：睡眠 +1，学习 -2（联动）
+    return { sleep: 1, social: Math.round((7 - level) * mul), study: -2 };
+  }
+  // 普通班学习收益更低
+  const classPenalty = CFG.className === '普通班' ? 2 : 0;
+  const studyGain = Math.max(1, Math.round((7 - level - trackStudyPenalty() - classPenalty) * mul));
   return { sleep: -(5 + level), social: -(3 + level), study: studyGain };
 }
 
@@ -876,12 +883,35 @@ function trackAptitudeNote(track) {
   return '当前性别与这个选科的适配度正常，学习收益不受额外影响。';
 }
 
+// 首选科目（单选）
 $$('#in-track button').forEach((b) => {
   b.addEventListener('click', () => {
+    $$('#in-track button').forEach((x) => x.classList.remove('selected'));
+    b.classList.add('selected');
     const noteEl = $('#track-aptitude-note');
     if (noteEl) noteEl.textContent = trackAptitudeNote(b.dataset.v);
   });
 });
+
+// 再选科目（选 2，最多 2）
+function updateExtraHint() {
+  const selected = $$('#in-track-extra .selected');
+  const hint = $('#track-extra-hint');
+  if (hint) hint.textContent = `已选 ${selected.length} / 2 科${selected.length === 2 ? ' ✓' : '（请再选 ' + (2 - selected.length) + ' 科）'}`;
+}
+$$('#in-track-extra button').forEach((b) => {
+  b.addEventListener('click', () => {
+    if (b.classList.contains('selected')) {
+      b.classList.remove('selected');
+    } else {
+      const selected = $$('#in-track-extra .selected');
+      if (selected.length >= 2) return;
+      b.classList.add('selected');
+    }
+    updateExtraHint();
+  });
+});
+updateExtraHint();
 
 // 开局现在是一页式表单：保留原来的所有字段，减少来回翻页，让手机端更接近参考图。
 $('#btn-begin').addEventListener('click', () => {
@@ -920,7 +950,13 @@ function showTrackChoice() {
 $('#btn-track-confirm').addEventListener('click', () => {
   if (!S || S.ended || S.semIdx !== 1) return;
   CFG.track = $('#in-track .selected').dataset.v;
-  S.track = CFG.track;
+const extraSelected = $$('#in-track-extra .selected').map((b) => b.dataset.v);
+if (extraSelected.length !== 2) {
+  alert('再选科目需要选 2 科');
+  return;
+}
+S.trackExtra = extraSelected;
+S.track = CFG.track;
   if (!S.trackApplied) {
     if (S.track === '物理') applyFx({ study: 3 });
     S.trackApplied = true;
@@ -1070,6 +1106,12 @@ function newGame() {
   if (tfx.sleep) S.sleep = clamp(S.sleep + tfx.sleep);
 
   if (CFG.className === '容庚班') S.study = clamp(S.study + 8);
+  // 普通班：学习收益降低，但社交和睡眠更多（师资倾斜）
+  if (CFG.className === '普通班') {
+    S.study = clamp(S.study - 3);
+    S.social = clamp(S.social + 5);
+    S.sleep = clamp(S.sleep + 5);
+  }
 
   // 恋爱线：开局只是「还没遇见」，对象在开学后由剧情确定。
   S.love = newLoveState();
@@ -3612,45 +3654,34 @@ function buildLoveFestivalEvent() {
 /* pickEvent done */
 
 /* ---------------- 考试 / 学期结算 ---------------- */
+/*对应莞中水平*/ 
 function gaokaoBandForStudy(study) {
   const value = clamp(study);
-  if (value < 45) {
+  if (value < 40) {
     return {
-      id: 'bottom',
-      label: '年级末流',
-      rangeLabel: '470 分以下',
-      low: 390,
-      high: 469,
-      expected: Math.round(390 + (value / 45) * 79),
+      id: 'bottom', label: '年级末流', rangeLabel: '470 分以下',
+      low: 390, high: 469,
+      expected: Math.round(390 + (value / 40) * 79),
     };
   }
-  if (value < 55) {
+  if (value < 50) {
     return {
-      id: 'middle',
-      label: '年级中游',
-      rangeLabel: '470～530 分',
-      low: 470,
-      high: 530,
-      expected: Math.round(470 + ((value - 45) / 10) * 60),
+      id: 'middle', label: '年级中游', rangeLabel: '470～530 分',
+      low: 470, high: 530,
+      expected: Math.round(470 + ((value - 40) / 10) * 60),
     };
   }
-  if (value < 70) {
+  if (value < 65) {
     return {
-      id: 'upper-middle',
-      label: '年级中上游',
-      rangeLabel: '530～570 分',
-      low: 530,
-      high: 570,
-      expected: Math.round(530 + ((value - 55) / 15) * 40),
+      id: 'upper-middle', label: '年级中上游', rangeLabel: '530～570 分',
+      low: 530, high: 570,
+      expected: Math.round(530 + ((value - 50) / 15) * 40),
     };
   }
   return {
-    id: 'front',
-    label: '年级前沿',
-    rangeLabel: '570～690 分',
-    low: 570,
-    high: 690,
-    expected: Math.round(570 + ((value - 70) / 30) * 120),
+    id: 'front', label: '年级前沿', rangeLabel: '570～690 分',
+    low: 570, high: 690,
+    expected: Math.round(570 + ((value - 65) / 35) * 120),
   };
 }
 
@@ -3871,19 +3902,21 @@ function loveEnding() {
 
 function computeScore() {
   const band = gaokaoBandForStudy(S.study);
-  // 学习属性决定高考主体区间，睡眠 / 社交 / 恋爱 / 班级只提供小幅综合修正，避免跳出学习档位。
   const lifestyleAdjustment = clamp(Math.round(
     (S.sleep - 70) * 0.08 +
     (S.social - 50) * 0.04 +
     (S.love && S.love.aff >= 71 ? 3 : 0) +
     (CFG.className === '容庚班' ? 5 : 0) +
+    (CFG.className === '镜堂班' ? 8 : 0) +
     rnd(-4, 4)
   ), -8, 8);
   const expectedScore = clamp(band.expected + lifestyleAdjustment, band.low, band.high);
-  // 高三竞争加剧：高考实际分数额外下降（普通 10～30，困难 18～42）。
+
+  // 高三竞争扣分降低：普通 5~12，困难 10~18
   const penaltyRange = DIFFICULTY.gaokaoPenalty;
   const competitionPenalty = S.semIdx >= 4 ? rnd(penaltyRange[0], penaltyRange[1]) : 0;
   const finalScore = clamp(expectedScore - competitionPenalty, 200, 750);
+
   S.gaokao = {
     band: band.id,
     bandLabel: band.label,

@@ -1425,7 +1425,7 @@ function buildPhoneChoiceEvent() {
   // 只在学年开始时询问：semIdx 0（高一）、2（高二）、4（高三）
   if (S.semIdx % 2 !== 0) return null;
   if (S.flags.phoneChoiceSem === S.semIdx) return null;
-  S.flags.phoneChoiceSem = S.semIdx;
+  // 不在这里标记，等玩家选了再说
 
   const yearName = ['高一', '高二', '高三'][Math.floor(S.semIdx / 2)];
 
@@ -1447,7 +1447,7 @@ function buildPhoneChoiceEvent() {
         title: '📱 把手机装进了书包',
         text: '你把手机和充电线一起塞进书包夹层。这一年的校园生活，会多出很多本来不会发生的故事。',
         journal: `· ${yearName}带了手机`,
-        onPick: () => { S.phone = true; },
+        onPick: () => { S.phone = true; S.flags.phoneChoiceSem = S.semIdx; },
       },
       {
         label: '不带手机（专注学习，睡得更早）',
@@ -1456,7 +1456,7 @@ function buildPhoneChoiceEvent() {
         title: '📱 把手机留在了家里',
         text: '你把手机放回书桌抽屉。走出家门的时候，书包轻了一点，心里也轻了一点。',
         journal: `· ${yearName}没带手机`,
-        onPick: () => { S.phone = false; },
+        onPick: () => { S.phone = false; S.flags.phoneChoiceSem = S.semIdx; },
       },
     ],
   };

@@ -442,6 +442,29 @@ button { -webkit-appearance: none; }
 .mini-btn { min-height: 34px; padding: 6px 5px; border-radius: 8px; background: var(--card); border: 1px solid var(--line); color: var(--green); font-size: 11px; cursor: pointer; }
 .mini-btn.on { background: var(--green); border-color: var(--green); color: #fffdf7; }
 
+/* 选项闸门：默认折叠，玩家点提示条后才展开 */
+.choices.gated { display: none; }
+.choices-unlock {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; padding: 13px 12px;
+  background: var(--paper-2);
+  border: 1.5px dashed var(--dash);
+  border-radius: 10px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+.choices-unlock:hover,
+.choices-unlock:focus {
+  background: var(--paper-3);
+  border-color: var(--green-2);
+  color: var(--green);
+  outline: none;
+}
+.choices-unlock .cu-icon { font-size: 15px; }
+
 /* ---------- 弹窗 ---------- */
 .modal-mask { position: fixed; inset: 0; background: rgba(57,64,56,.35); display: flex; justify-content: center; align-items: center; z-index: 50; padding: 18px; }
 .modal { width: 100%; max-width: 440px; max-height: 82vh; overflow-y: auto; background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 19px 16px; box-shadow: 0 14px 40px rgba(57,64,56,.18); }

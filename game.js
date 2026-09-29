@@ -1183,6 +1183,34 @@ const MONTHLY_SPECIALS = [
     fx: { social: 4, sleep: -3, study: -2 },
   },
 ];
+/* ================================================================
+   选项闸门：让玩家先读剧情，再选选项。
+   每次渲染选项区的时候调用 gateChoices(area)，选项默认隐藏，
+   玩家点击提示条后才展开。避免"还没看完剧情就下意识点选"。
+   ================================================================ */
+function gateChoices(area) {
+  if (!area) return;
+  const choices = area.querySelector('.choices');
+  if (!choices) return;
+
+  // 已经加过闸门就不再重复
+  if (area.querySelector('.choices-unlock')) return;
+
+  choices.classList.add('gated');
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'choices-unlock';
+  btn.innerHTML = '<span class="cu-icon">📖</span><span class="cu-text">先看完上面的剧情，看完再点这里选</span>';
+  btn.onclick = () => {
+    choices.classList.remove('gated');
+    btn.remove();
+    // 展开后柔和地把视线拉回选项区
+    requestAnimationFrame(() => {
+      try { choices.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch (e) {}
+    });
+  };
+  choices.parentNode.insertBefore(btn, choices);
+}
 function scrollLogToEnd() {
   const log = $('#log');
   const actionArea = $('#action-area');
@@ -1212,7 +1240,7 @@ function showMainChoices() {
 
   area.innerHTML = `
     <div class="choice-module current-choice-module">
-      <div class="module-kicker">本月安排 · ${DIFFICULTY.label}</div>
+      <div class="module-kicker">月度安排 · 第 ${Math.ceil(S.round / 2)} 次 · ${DIFFICULTY.label}</div>
       <div class="module-context">${hint}　把时间交给哪一件事？</div>
       <div class="choices" id="main-choices">
         <button class="choice-btn" data-act="sleep">
@@ -1238,7 +1266,7 @@ function showMainChoices() {
         </button>
       </div>
     </div>`;
-
+  gateChoices(area);
   area.querySelectorAll('.choice-btn').forEach((b) => {
     b.onclick = () => {
       const act = b.dataset.act;
@@ -1368,8 +1396,10 @@ function loveQuotaReady() {
   if (q.tokens >= LOVE_QUOTA_CAP) return true;
   // 根据感情倾向调整日常恋爱内容出现的概率
   let chanceVal = LOVE_DAILY_CHANCE;
-  if (CFG.loveMode === 'half') chanceVal *= 0.5;   // 有情：频率减半
-  if (CFG.loveMode === 'none') return false;        // 无意：不触发日常恋爱
+  // 纯爱：拉满，几乎每次都出；顺其自然：一半；专注学业：不出日常恋爱
+  if (CFG.loveMode === 'full') chanceVal = Math.min(1, chanceVal * 1.35);
+  if (CFG.loveMode === 'half') chanceVal *= 0.5;
+  if (CFG.loveMode === 'none') return false;
   return chance(chanceVal);
 }
 // 恋爱占比是否已经超过 1/3（即 恋爱 > 校园 / 2）。
@@ -1495,7 +1525,9 @@ function processQueue() {
       logEvent(sc.kind || 'event', sc.title, sc.body, sc.fx);
       if (sc.journal) journal(sc.journal);
       if (sc.onPick) sc.onPick();
-      continue;
+      // 纯文本事件：给一点缓冲，让下一条事件慢一拍再上，
+      // 否则一整条队列会一瞬间全部刷完，艺术节 / 高雅艺术这种"独一段"容易被刷过头。
+      break;
     }
     if (sc.t === 'exam') {
       QUEUE.shift();
@@ -1509,6 +1541,12 @@ function processQueue() {
     QUEUE.shift();
   }
   // 队列走完 → 进入下一轮（或学期结算 / 结局）
+  // 队列走完 → 进入下一轮（或学期结算 / 结局）
+  // 但刚才如果是被"纯文本事件"中断的，要等一拍再继续，让玩家有时间读到。
+  if (QUEUE.length) {
+    setTimeout(processQueue, 400);
+    return;
+  }
   finishRound();
 }
 
@@ -1539,6 +1577,7 @@ function renderEventChoice(sc) {
           </button>`).join('')}
       </div>
     </div>`;
+  gateChoices(area);
   area.querySelectorAll('.choice-btn').forEach((btn) => {
     btn.onclick = () => {
       const opt = sc.options[+btn.dataset.i];
@@ -1553,6 +1592,12 @@ function renderEventChoice(sc) {
       if (result.onPick) result.onPick();
       if (sc.onResolve) sc.onResolve();
       checkTitles();
+      // 对话链：如果当前选项返回了 next，插到队列最前面，
+      // 玩家马上进入下一轮对话，而不是被别的校园事件打断。
+      if (result.next) {
+        const nextEvent = typeof result.next === 'function' ? result.next() : result.next;
+        if (nextEvent) QUEUE.unshift(nextEvent);
+      }
       processQueue();
     };
   });
@@ -2961,12 +3006,67 @@ function loveEvent01() {
         kind: 'love',
         title: '📚 一起捡',
         text: lp({
-          A: '你蹲下去的时候，TA 的手顿了一下。\n\n两个人捡同一本，指尖碰到一起，TA 立刻收回手，让你拿。\n\n站起来的时候 TA 看了你一眼——很快，快到像是没发生。',
-          B: '「哦！谢谢谢谢。」TA 把最后一本拍干净，顺手塞进你怀里，转身就要走。\n\n走了两步又回头补了一句：「下次作业本别摞那么高啊！」',
-          C: '你们一人一边，把本子按页码捡回来。TA 把最后一本递给你的时候，指尖在上面停了一秒。\n\n「……好了。」',
-          D: '「……我自己会捡。」嘴上这么说，手却没停。\n\n你把最后一本递过去，TA 犹豫了一下，才伸手接。',
+          A: '你蹲下去的时候，TA 的手顿了一下。两个人捡同一本，指尖碰到一起，TA 立刻收回手，让你拿。',
+          B: '「哦！谢谢谢谢。」TA 把最后一本拍干净，顺手塞进你怀里，笑得毫无防备。',
+          C: '你们一人一边，按页码把本子捡回来。TA 把最后一本递给你的时候，指尖在上面停了一秒。',
+          D: '「……我自己会捡。」嘴上这么说，手却没停。',
         }),
         journal: '· 作业本：一起捡',
+        // 对话链：捡完后，TA 会主动说一句话，玩家再选一次
+        next: () => ({
+          t: 'choice',
+          intro: {
+            kind: 'love',
+            title: '📚 一起捡（续）',
+            body: `两个人都站起来了。\n\n${lp({
+              A: '「……谢谢。」TA 终于抬头看了你一眼。',
+              B: '「诶，你人挺好嘛！」TA 拍了拍手上的灰，笑嘻嘻地看着你。',
+              C: '「……谢谢你。」TA 抱着书，说得小声但很清楚。',
+              D: '「……算你识相。」TA 抱着书，耳朵有点红。',
+            })}`,
+          },
+          options: [
+            {
+              label: '「那你请我喝水吧。」',
+              fx: { aff: 4, social: 2 },
+              kind: 'love',
+              title: '📚 讨了瓶水',
+              text: lp({
+                A: '「……嗯。」TA 愣了一下，然后转身去小卖部。回来的时候，手里是两瓶。',
+                B: '「行！走走走！」TA 直接把书包扔给你，跑去买了一箱——不对，是两瓶。',
+                C: '「……好。」TA 转身走的时候，脚步比平时快了一点。',
+                D: '「凭什么啊。」TA 嘴上说着，人已经往小卖部走了。',
+              }),
+              journal: '· 作业本后续：讨水',
+            },
+            {
+              label: '「没事，我走了。」',
+              fx: { aff: 1, sleep: 1 },
+              kind: 'love',
+              title: '📚 就此别过',
+              text: lp({
+                A: '「嗯。」TA 站在原地，看着你走远。',
+                B: '「哦，那下次见！」TA 挥挥手。',
+                C: '「……再见。」TA 说得比平时慢半拍。',
+                D: '「走就走呗。」TA 别开脸。',
+              }),
+              journal: '· 作业本后续：告别',
+            },
+            {
+              label: '「你抱得动吗？我帮你拿一半。」',
+              fx: { aff: 6, sleep: -1 },
+              kind: 'love',
+              title: '📚 帮 TA 拿',
+              text: lp({
+                A: '「……不用。」TA 把书抱得更紧了，但没走。',
+                B: '「好啊好啊，累死我了。」TA 直接把一半摞给你，自己空着手走在前面。',
+                C: '「……那你拿这两本吧，轻的。」TA 挑了两本最薄的给你。',
+                D: '「我自己拿得动。」TA 说完，看你没动，又低声补了句「……你要拿就拿吧」。',
+              }),
+              journal: '· 作业本后续：帮忙拿',
+            },
+          ],
+        }),
       },
       {
         label: '站着摆手说「没事没事」',
@@ -2974,10 +3074,10 @@ function loveEvent01() {
         kind: 'love',
         title: '📚 客气了一下',
         text: lp({
-          A: '「嗯。」TA 把最后一本摞好，抱起来，走了。\n\n你站在原地，风从走廊吹进来，纸页的边角翻动了一下。',
-          B: '「没事就好！那我先走啦。」TA 拍了拍手上的灰，挥挥手走了。\n\n你注意到 TA 走的时候脚步比来的时候快。',
+          A: '「嗯。」TA 把最后一本摞好，抱起来，走了。',
+          B: '「没事就好！那我先走啦。」TA 拍了拍手上的灰，挥手走了。',
           C: '「……嗯，麻烦了。」TA 低着头，把本子一摞一摞摆正，才抱着走。',
-          D: '「算你识相。」TA 把最后几本塞进你怀里，转身就走，耳朵有点红。',
+          D: '「算你识相。」TA 把最后几本塞进你怀里，转身就走。',
         }),
         journal: '· 作业本：客气',
       },
@@ -2987,8 +3087,8 @@ function loveEvent01() {
         kind: 'love',
         title: '📚 玩笑开过头',
         text: lp({
-          A: '「……是我的错。」TA 低下头，声音很轻。\n\n你想说「开玩笑的」，但 TA 已经抱着书走远了。',
-          B: '「哈？明明是你挡路！」TA 瞪了你一眼，转身就走。\n\n走了几步，你听到 TA 低声骂了一句什么，但听不清。',
+          A: '「……是我的错。」TA 低下头，声音很轻。你想说「开玩笑的」，但 TA 已经抱着书走远了。',
+          B: '「哈？明明是你挡路！」TA 瞪了你一眼，转身就走。',
           C: '「……对不起。」TA 把本子摞好，抱起来，没看你。',
           D: '「你才要看路！笨蛋。」TA 抱着书走了，脚步咚咚的。',
         }),
@@ -4159,8 +4259,7 @@ function doExam() {
     : '全年级 800 人 · 本学期大考';
   const bandHint = `学习档位：${profile.label} · 高考基准 ${profile.low}～${profile.high} 分`;
 
-  logEvent('exam', tier, `${extra}\n${bandHint}\n\n这场考试之后`, fx);
-  // 最新事件现在位于 log 顶部，不能再取 lastElementChild（那是选项区）。
+  // 只调一次，拿返回值接住卡片（之前调了两次，导致每次考试出现两张成绩卡）。
   const latestEvent = logEvent('exam', tier, `${extra}\n${bandHint}\n\n这场考试之后`, fx);
   if (latestEvent) latestEvent.insertAdjacentHTML('beforeend', `<div class="result-body" style="margin-top:8px">${rank <= 150 ? '状态不错，节奏找对了。' : rank >= 650 ? '基础在晃，该把重心拉回学习了。' : '不好不坏，继续观察。'}</div>`);
   journal(`· 考试 第 ${rank} 名 · ${profile.label}`);
@@ -4213,10 +4312,25 @@ function finishRound() {
     return;
   }
 
-  if (S.semIdx !== previousSem) startSemester();
-  else {
-    renderHud();
+  if (S.semIdx !== previousSem) {
+    startSemester();
+    return;
+  }
+
+  renderHud();
+
+  // 奇数轮 = 月轮（弹主选择）；偶数轮 = 轻轮（只走日常 + 剧情，给自然积累）
+  if (S.round % 2 === 1) {
     showMainChoices();
+  } else {
+    const growth = { sleep: 2, social: 1, study: 1 };
+    applyFx(growth);
+    logEvent('daily', '🕊️ 平常的半个月',
+      '这半个月按部就班，没有特别的大选择。早读、上课、午饭、晚修，日子一天一天过去，人也在一点一点往前走。',
+      growth);
+    journal('· 半个月的日常积累');
+    buildEventQueue();
+    processQueue();
   }
 }
 

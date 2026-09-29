@@ -964,7 +964,7 @@ function showTrackChoice() {
 $('#btn-track-confirm').addEventListener('click', () => {
   if (!S || S.ended || S.semIdx !== 1) return;
   CFG.track = $('#in-track .selected').dataset.v;
-const extraSelected = $$('#in-track-extra .selected').map((b) => b.dataset.v);
+const extraSelected = Array.from($$('#in-track-extra .selected')).map((b) => b.dataset.v);
 if (extraSelected.length !== 2) {
   alert('再选科目需要选 2 科');
   return;
@@ -2005,7 +2005,7 @@ const DAILY_SLOTS = [
           : { fx: { sleep: 2, study: -1 }, kind: 'daily', title: '🌤️ 二十分钟回血', text: '你把书立起来挡住脸，二十分钟后满血复活。同桌帮你盯了两次老师。', journal: '· 早读：趴桌补觉' }),
       },
       {
-        label: '走廊和同学闲聊', fx: { social: 2, study: -2 },
+        label: '走廊和同学闲聊', fx: { social: 2, study: -1 },
         title: '🌤️ 走廊闲话',
         text: '你们靠在栏杆上，从昨晚的球赛聊到隔壁班的八卦。早读铃响的时候谁都没背进一个字，但心情好了不少。',
         journal: '· 早读：走廊闲聊',
@@ -2025,19 +2025,19 @@ const DAILY_SLOTS = [
         journal: '· 课间：趴桌小憩',
       },
       {
-        label: '拿习题去办公室找老师答疑', fx: { study: 2, sleep: -3 },
+        label: '拿习题去办公室找老师答疑', fx: { study: 3, sleep: -3 },
         title: '📖 办公室答疑',
         text: '办公室里排了三个人。你把攒了两天的题一口气问完，老师顺手在你本子上画了个圈：「这个思路对了。」',
         journal: '· 课间：办公室答疑',
       },
       {
-        label: '和好友去操场走走', fx: { social: 2, sleep: -2 },
+        label: '和好友去操场走走', fx: { social: 2, sleep: -1 },
         title: '📖 操场走一圈',
         text: '你们绕操场走了一圈，在小卖部买了两瓶饮料。回来的时候出了些汗，上课铃刚好响。',
         journal: '· 课间：操场走一圈',
       },
       {
-        label: '跑去地下室打乒乓球', fx: { social: 1, sleep: -2 },
+        label: '跑去地下室打乒乓球', fx: { social: 1, sleep: -1 },
         title: '📖 打乒乓球',
         text: '你在负1层找到球友，和他打了几局乒乓球，期间你一用力，把球打上了天花板的夹层里。',
         journal: '· 课间：跑去地下室打乒乓球',
@@ -2057,13 +2057,13 @@ const DAILY_SLOTS = [
     body: '第五节课的下课铃一响，楼道里全是脚步声。饭堂的队伍已经排到了洗手池。许多同学出了校门去寻觅美食。',
     options: [
       {
-        label: '食堂正常吃饭，回宿舍午休', fx: { sleep: 3, study: -1, social: -1 },
+        label: '食堂正常吃饭，回宿舍午休', fx: { sleep: 3,  social: -1 },
         title: '🍚 吃饭午休',
         text: '你排了十分钟的队，打了一份两荤一素，回宿舍躺下的时候还不到一点。醒来时天光正好。',
         journal: '· 午饭：吃饭午休',
       },
       {
-        label: '快速吃完饭留在教室刷题', fx: { study: 1, sleep: -1 },
+        label: '快速吃完饭留在教室刷题', fx: { study: 1, sleep: -2 },
         title: '🍚 教室刷题',
         text: '你五分钟解决午饭，把错题本翻到第三页。教室里只有两三个人，安静得能听见笔尖划纸的声音。',
         journal: '· 午饭：教室刷题',
@@ -2083,9 +2083,9 @@ const DAILY_SLOTS = [
     title: '🌇 放学之后',
     hint: '晚修前还有一段空档。',
     body: '下午的课结束，晚修还有一段时间。操场上有跑步的，教室里有写作业的，图书馆亮着灯，不时有歌声从男生宿舍传来。',
-    options: [校史馆
+    options: [
       {
-        label: '去操场打球 / 跑步', fx: { sleep: 2, study: -2 },
+        label: '去操场打球 / 跑步', fx: { sleep: 2, study: -1 },
         title: '🌇 操场',
         text: '你跑了三圈，又在球场投了十几个球。回教室的时候浑身是汗，但脑子空空的，很舒服。',
         journal: '· 放学：操场打球跑步',
@@ -2097,7 +2097,7 @@ const DAILY_SLOTS = [
         journal: '· 放学：提前完成晚修任务',
       },
       {
-        label: '去图书馆看书', fx: { social: 2, study: -1 },
+        label: '去图书馆看书', fx: { social: -1, study: 1, sleep:-1},
         title: '🌇 图书馆',
         text: '图书馆人不少，你在书架间流连，看了几本有意思的书，一直到晚修铃快响的时候才离开。',
         journal: '· 放学：图书馆',
@@ -2140,7 +2140,7 @@ const DAILY_SLOTS = [
     body: '晚修铃响过，教室里只剩翻书声和笔尖声。值班老师会在走廊上来回走两趟，玻璃窗上偶尔会映出一个影子。',
     options: [
       {
-        label: '专心刷题、整理错题', fx: { study: 2, social: -1 },
+        label: '专心刷题、整理错题', fx: { study: 2, social: -1, sleep: -1},
         resolve: () => (chance(0.4)
           ? { fx: {}, kind: 'daily', title: '✍️ 遇到难题，心态崩了', text: '第三道大题你算了四遍，答案一次都没对上。你把笔一扔，趴下去盯着桌角发呆，直到下课铃响才回过神——这两节晚修等于没上。', journal: '· 晚修：遇到难题心态崩了（无加成）' }
           : { fx: { study: 3, social: -1 }, kind: 'daily', title: '✍️ 两节晚修的收获', text: '你把错题本翻到最前面，一道一道重新过。下课铃响的时候，那几类题的解法终于连成了一条线。', journal: '· 晚修：专心刷题整理错题' }),
@@ -2152,7 +2152,7 @@ const DAILY_SLOTS = [
         journal: '· 晚修：和同桌传纸条',
       },
       {
-        label: '偷偷看课外书', fx: { social: 2, study: -2 },
+        label: '偷偷看课外书', fx: { social: 2, study: -1 ,sleep: -1},
         title: '✍️ 课桌下的课外书',
         text: '你把小说夹在课本里，一行一行往下看。值班巡班老师的影子在窗上晃了两次，你都及时把书合上了。',
         journal: '· 晚修：偷偷看课外书',
@@ -2172,7 +2172,7 @@ const DAILY_SLOTS = [
     body: '晚修结束，宿舍楼下的灯还亮着。有人一路小跑回去抢洗澡位，有人慢慢走还在对答案。熄灯时间是固定的，谁也躲不过。',
     options: [
       {
-        label: '快速洗漱，早点上床休息', fx: { sleep: 3, social: -1, study: -2 },
+        label: '快速洗漱，早点上床休息', fx: { sleep: 3, social: -1, study: -1 },
         resolve: () => (chance(0.3)
           ? { fx: {}, kind: 'daily', title: '🌙 睡不着', text: '你十点半就躺下了，可脑子一直在转——白天那道题、明天要交的作业、还有同桌随口说的一句话。翻来覆去到快十二点才迷迷糊糊睡过去。', journal: '· 晚修后：失眠（属性不变）' }
           : { fx: { sleep: 4, social: -1, study: -1 }, kind: 'daily', title: '🌙 睡了个好觉', text: '你抢到了洗澡位，十点四十就上了床。宿舍里还在小声聊天，你已经睡着了。', journal: '· 晚修后：早睡' }),
@@ -2212,7 +2212,7 @@ const DAILY_SLOTS = [
         onPick: () => { dailyGrantLeavePass(); },
       },
       {
-        label: '好好睡一觉休息，出门逛街散心', fx: { sleep: 3, study: -2 },
+        label: '好好睡一觉休息，出门逛街散心', fx: { sleep: 3, study: -1 },
         title: '📅 睡到自然醒',
         text: '你睡到中午才起，然后一个人出门走了很久。回来的时候天已经黑了，作业一个字没动，但整个人松了下来。',
         journal: '· 周末：睡觉逛街散心',
@@ -2228,7 +2228,7 @@ const DAILY_RANDOM_EVENTS = [
     title: '🎲 班主任安排你负责班级黑板报',
     body: '班主任在走廊上叫住你：「这期黑板报的主题是校庆，你来牵头吧。」说完就转身走了，没给你拒绝的时间。',
     options: [
-      { label: '答应接下任务', fx: { social: 2, study: -1}, title: '🎲 接下黑板报', text: '你拉了三个同学一起，利用课间把版面分了工。出刊那天，隔壁班的人特意过来看了两眼。', journal: '· 黑板报：接下任务' },
+      { label: '答应接下任务', fx: { social: 3, study: -1, sleep: -1}, title: '🎲 接下黑板报', text: '你拉了三个同学一起，利用课间把版面分了工。出刊那天，隔壁班的人特意过来看了两眼。', journal: '· 黑板报：接下任务' },
       { label: '委婉推辞', fx: {}, title: '🎲 推辞了黑板报', text: '你说最近作业有点多。班主任点点头：「那下次吧。」你说不清心里是松了口气还是有点失落。', journal: '· 黑板报：委婉推辞' },
     ],
   },
@@ -2236,7 +2236,7 @@ const DAILY_RANDOM_EVENTS = [
     title: '🎲 同桌找你要笔记复习',
     body: '月考临近。同桌凑过来，声音压得很低：「你那本笔记……借我看看呗？就一晚上。」',
     options: [
-      { label: '大方借给他', fx: { social: 3, study: -2 }, title: '🎲 借出笔记', text: '第二天早上，笔记本整整齐齐放在你桌上，里面还夹了一张便利贴：「你圈的重点真准，谢了。」', journal: '· 笔记：大方借出' },
+      { label: '大方借给他', fx: { social: 3, study: -1 }, title: '🎲 借出笔记', text: '第二天早上，笔记本整整齐齐放在你桌上，里面还夹了一张便利贴：「你圈的重点真准，谢了。」', journal: '· 笔记：大方借出' },
       { label: '婉拒，自己还要用', fx: { social: -1, study: 1 }, title: '🎲 婉拒了', text: '你说自己晚上还要过一遍。同桌「哦」了一声，转回去翻自己的书。那天你没怎么分心，把整章都过完了。', journal: '· 笔记：婉拒（自己复习）' },
     ],
   },
@@ -3803,8 +3803,11 @@ function finishRound() {
 /* ---------------- 结局 ---------------- */
 function universityForScore(score) {
   if (score >= 680) return { tier: '清北层次', school: '清华大学 / 北京大学', desc: '你可以把最想去的专业放在志愿表最前面，冲刺顶尖高校。' };
-  if (score >= 640) return { tier: '985 / 强 211', school: '中山大学 / 华南理工大学', desc: '华南地区的好大学向你敞开，专业选择也有足够余地。' };
-  if (score >= 600) return { tier: '211 / 双一流', school: '暨南大学 / 华南师范大学', desc: '你稳稳站上双一流赛道，可以认真比较城市与专业。' };
+  if (score >= 670) return { tier: 'C9联盟', school: '上海交通大学 / 复旦大学', desc: '清北之下，所有的好大学、好专业你都有选择的空间。' };
+  if (score >= 660) return { tier: '顶尖985', school: '武汉大学 / 浙江大学', desc: '你已经站在了年级的前列，当别人问你考的怎么样时，你可以自豪地说出自己的分数。' };
+  if (score >= 640) return { tier: '强985', school: '中山大学 / 华南理工大学', desc: '华南地区的好大学向你敞开，专业选择也有足够余地。' };
+  if (score >= 630) return { tier: '985工程', school: '中山大学 / 北京师范大学', desc: '你可以选择一个好大学、好专业，未来有光明的前途。' };
+  if (score >= 600) return { tier: '211工程 / 双一流', school: '暨南大学 / 华南师范大学', desc: '你稳稳站上双一流赛道，可以要认真比较城市与专业。' };
   if (score >= 570) return { tier: '一本院校', school: '广东工业大学 / 广州大学', desc: '一本院校的专业和城市选择都还不错，下一站会很具体。' };
   if (score >= 530) return { tier: '本科院校', school: '广东财经大学 / 广州医科大学', desc: '本科志愿需要做梯度，但你已经有了不少现实选项。' };
   if (score >= 470) return { tier: '本科机会', school: '广东技术师范大学 / 广州软件学院', desc: '冲稳保填好，依然有机会拿到本科录取通知。' };
@@ -3813,17 +3816,30 @@ function universityForScore(score) {
 
 function academicEnding(score) {
   const university = universityForScore(score);
+
   if (score >= 680) return {
     title: '清北之光',
     desc: '出分那天，班级群瞬间刷屏。你盯着屏幕看了很久，才确认那个数字不是幻觉。高中三年的卷子、夜修、周测，都有了回响。',
   };
+  if (score >= 670) return {
+    title: 'C9 尖子生',
+    desc: '这个分数，清北之外的所有学校都向你敞开。班主任专门打电话过来，语气比平时轻快许多：「稳了，挑个喜欢的城市吧。」',
+  };
+  if (score >= 660) return {
+    title: '顶尖 985',
+    desc: '你稳稳站在年级最前列。当亲戚问你考得怎么样时，你终于可以不带一丝谦虚地说出那个数字——这是三年里最痛快的一句话。',
+  };
   if (score >= 640) return {
+    title: '强 985 上岸',
+    desc: '成绩出来，班主任在群里连发了三个表情。你把录取通知拍给家里，电话那头沉默了两秒，然后是爽朗的大笑。',
+  };
+  if (score >= 630) return {
     title: '985 上岸',
-    desc: '成绩出来，班主任在群里连发了三个表情。你把录取通知拍给家里，电话那头沉默了两秒，然后是憋不住的笑。',
+    desc: '稳稳越过 985 的门槛。你把堆在桌角的五三一本本收进箱子，忽然有点舍不得这些又爱又恨的夜晚。',
   };
   if (score >= 600) return {
-    title: '211 上岸',
-    desc: '稳稳越过特控线。你把堆在桌角的五三一本本收进箱子，忽然有点舍不得这些又爱又恨的夜晚。',
+    title: '211 / 双一流',
+    desc: '稳稳越过特控线。211 的录取通知书在手，专业和城市都还有挑选的空间。你终于可以开始认真规划，而不是被动接受。',
   };
   if (score >= 570) return {
     title: '一本上岸',

@@ -39,7 +39,7 @@ let CFG = {
   track: null,
   name: '',
   // 入学的学年起始年，开局时按真实日期定死，存档一起带走（否则跨年读档日期会漂）。
-  loveMode: 'full',   // 感情倾向：full=纯爱, half=有情, none=无意
+  loveMode: 'none',   // 感情倾向：full=纯爱, half=有情, none=无意（默认专注学业）
   startYear: null,
 };
 
@@ -101,7 +101,7 @@ function difficultyNote(key) {
 }
 
 // 抓手机的人：年级主任与级长。课堂上 / 晚修里玩手机，被他们逮到概率很大。
-const PHONE_CATCHERS = ['年级主任郑rj', '级长林zy', '级长巨 wf', '级长练jc', '级长曾y'];
+const PHONE_CATCHERS = ['年级主任郑rj', '年级主任林zy', '级长巨 wf', '级长练jc', '级长曾y'];
 
 function phoneCatcher() {
   return pick(PHONE_CATCHERS);
@@ -144,7 +144,7 @@ function buildOpenDayEvent() {
   const events = [
     {
       month: '12月', flag: 'openDayDecSeen', title: '🏫 十二月学校开放日',
-      body: '校园开放日的横幅挂在校门口，家长和初中生沿着教学楼参观。你站在熟悉的走廊里，第一次从“学生”的视角介绍自己的学校。',
+      body: '今天是校园开放日，家长和初中生沿着教学楼参观。你站在熟悉的走廊里，第一次从“学生”的视角介绍自己的学校。',
       fx: { social: 3, study: 1, sleep: -2 }, journal: '· 12月学校开放日',
     },
     {
@@ -402,6 +402,59 @@ function trackStudyPenaltyLabel() {
   return '';
 }
 
+/* ---------------- 受伤系统 ----------------
+运动 / 意外后有概率受伤，体力上限锁死在 90，
+两个学期之后每次学期切换恢复 10 点，直到回到 100。 */
+const INJURY_SOURCES = {
+  sport: ['膝盖扭伤', '脚踝挫伤', '肌肉拉伤', '手腕扭伤'],
+  fall: ['下楼梯扭到脚', '踩空台阶崴了脚', '被教室门槛绊了一下'],
+  accident: ['打水时被热水烫到', '骑车摔了一跤', '体育课闪到腰'],
+};
+
+function tryInjure(kind, baseChance) {
+  if (!S) return false;
+  if (S.injury) return false;        // 已经受伤就不再叠加
+  if (!chance(baseChance)) return false;
+
+  const reason = pick(INJURY_SOURCES[kind] || INJURY_SOURCES.sport);
+  const cap = 90;
+  S.injury = { cap, reason, sinceSem: S.semIdx, recoverSem: S.semIdx + 2 };
+  S.sleepCap = cap;
+  // 立即削一刀体力，制造直观冲击
+  S.sleep = Math.max(0, Math.min(S.sleep, cap) - rnd(5, 10));
+
+  logEvent('bad', `🤕 ${reason}`,
+    `这个月你${kind === 'fall' ? '在楼梯上' : '运动'}出了点意外——${reason}。\n\n校医给你上了药，叮嘱「这段时间别再剧烈运动」。从那之后，体力上限一直卡在 ${cap}，怎么睡都回不到满格。`,
+    { sleep: -5 });
+  journal(`· 🤕 受伤：${reason}（体力上限 → ${cap}）`);
+  renderHud();
+  return true;
+}
+
+// 每个学期结束时检查伤情
+function tickInjury() {
+  if (!S || !S.injury) return;
+  const inj = S.injury;
+  if (S.semIdx < inj.recoverSem) return;      // 恢复期还没到
+  if (inj.cap >= 100) return;
+
+  inj.cap = Math.min(100, inj.cap + 10);
+  S.sleepCap = inj.cap;
+
+  if (inj.cap >= 100) {
+    logEvent('good', '💪 伤好了',
+      `养了大半个学期，${inj.reason}总算恢复了。你试着跑了几步，没再疼。\n\n体力上限回到 100。`,
+      { sleep: 5 });
+    journal('· 💪 伤愈：体力上限恢复 100');
+    S.injury = null;
+  } else {
+    logEvent('good', '🩹 恢复了一些',
+      `这学期你克制了很多，${inj.reason}好了不少。\n\n体力上限回到 ${inj.cap}。`,
+      null);
+    journal(`· 🩹 伤情恢复：体力上限 → ${inj.cap}`);
+  }
+}
+
 function mainEffects(act) {
   const level = DIFFICULTY.level;
   const streak = S ? (S[act + 'Streak'] || 0) : 0;
@@ -574,8 +627,13 @@ function renderHud() {
   $('#bar-sleep').style.width = S.sleep + '%';
   $('#val-sleep').textContent = S.sleep;
   const sleepStatus = $('#st-sleep');
-  sleepStatus.textContent = sleepLabel(S.sleep);
-  sleepStatus.title = sleepRiskHint(S.sleep);
+  if (S.injury && S.injury.cap < 100) {
+    sleepStatus.textContent = sleepLabel(S.sleep) + ' · 伤';
+    sleepStatus.title = `${S.injury.reason} · 体力上限 ${S.injury.cap}`;
+  } else {
+    sleepStatus.textContent = sleepLabel(S.sleep);
+    sleepStatus.title = sleepRiskHint(S.sleep);
+  }
   sleepStatus.classList.toggle('sleep-warning', S.sleep < 80);
   $('#bar-social').style.width = S.social + '%';
   $('#val-social').textContent = S.social;
@@ -611,7 +669,8 @@ function dateLabel(round) {
 
 function applyFx(fx) {
   if (!fx || !S) return;
-  if (typeof fx.sleep === 'number') S.sleep = clamp(S.sleep + fx.sleep);
+  const sleepCap = S.sleepCap || 100;
+  if (typeof fx.sleep === 'number') S.sleep = clamp(S.sleep + fx.sleep, 0, sleepCap);
   if (typeof fx.social === 'number') S.social = clamp(S.social + fx.social);
   if (typeof fx.study === 'number') S.study = clamp(S.study + fx.study);
   if (typeof fx.aff === 'number') addAff(fx.aff);
@@ -620,9 +679,9 @@ function applyFx(fx) {
 
 function sleepImpactForBand(band) {
   if (band === 'tired') return { study: -1, social: -1 };
-  if (band === 'noticeable') return { study: -2, social: -2 };
-  if (band === 'leave-risk') return { study: -3, social: -3 };
-  if (band === 'severe') return { study: -4, social: -4 };
+  if (band === 'noticeable') return { study: -3, social: -2 };
+  if (band === 'leave-risk') return { study: -5, social: -3 };
+  if (band === 'severe') return { study: -8, social: -5 };
   return null;
 }
 
@@ -697,7 +756,7 @@ function startForcedLeave(months, triggerChance) {
 function maybeTriggerSleepLeave() {
   if (S.sleep >= 50) return 0;
   if (S.sleep < 45) {
-    const yearChance = sleepLeaveChance(S.sleep, 45, 0.06, 0.006);
+    const yearChance = sleepLeaveChance(S.sleep, 60, 0.06, 0.006);
     S.lastLeaveChance = { months: 12, chance: yearChance, sleep: S.sleep };
     if (chance(yearChance)) return startForcedLeave(12, yearChance);
     return 0;
@@ -709,8 +768,8 @@ function maybeTriggerSleepLeave() {
 }
 
 function sleepRiskHint(sleep) {
-  if (sleep < 40) return `低于 50：本轮强制休学 1 年概率约 ${chancePercent(sleepLeaveChance(sleep, 50, 0.18, 0.014))}%`;
-  if (sleep < 50) return `低于 60：本轮强制休学 1 个月概率约 ${chancePercent(sleepLeaveChance(sleep, 60, 0.16, 0.012))}%`;
+  if (sleep < 50) return `低于 50：本轮强制休学 1 年概率约 ${chancePercent(sleepLeaveChance(sleep, 50, 0.14, 0.012))}%`;
+  if (sleep < 60) return `低于 60：本轮强制休学 1 个月概率约 ${chancePercent(sleepLeaveChance(sleep, 60, 0.08, 0.006))}%`;
   return '';
 }
 
@@ -895,7 +954,7 @@ function trackAptitudeNote(track) {
   if (CFG.gender === '男' && t === '历史') parts.push('⚠ 男生学历史：学习收益 -3');
   if (CFG.className === '镜堂班' && t === '物理') parts.push('✓ 镜堂班 + 物理：学习收益 +2');
   if (CFG.className === '容庚班' && t === '历史') parts.push('✓ 容庚班 + 历史：学习收益 +2');
-  if (CFG.className === '普通班') parts.push('⚠ 普通班：学习收益 -1，但社交收益和睡眠收益更好');
+  if (CFG.className === '普通班') parts.push('加油╭(･ㅂ･)و！！');
   return parts.length ? parts.join('　') : '当前组合没有额外加成或惩罚。';
 }
 
@@ -949,7 +1008,7 @@ $('#btn-begin').addEventListener('click', () => {
   CFG.difficulty = diffRow ? diffRow.dataset.v : CFG.difficulty || 'hard';
   setDifficulty(CFG.difficulty);
   const loveModeRow = $('#in-love-mode .selected');
-  CFG.loveMode = loveModeRow ? loveModeRow.dataset.v : 'full';
+  CFG.loveMode = loveModeRow ? loveModeRow.dataset.v : 'none';
   startSemester();
 });
 
@@ -981,7 +1040,7 @@ $('#btn-track-confirm').addEventListener('click', () => {
   // 放在这里，无论是否休学都会执行
   if (CFG.className === '普通班' && !S.flags.promotionChecked) {
     S.flags.promotionChecked = true;
-    const chanceVal = clamp((S.study - 55) / 30, 0, 0.85);
+    const chanceVal = clamp((S.study - 45) / 40, 0, 0.9);
     if (Math.random() < chanceVal) {
       S.flags.pendingPromotion = (S.track === '物理') ? '镜堂班' : '容庚班';
     }
@@ -1062,6 +1121,9 @@ function newGame() {
     dailyIdx: 0,
     // 手机机制：当前学年是否带手机（每学年开始时询问一次）
     phone: true,
+    // 受伤系统：体力上限锁死在 cap，过一段时间慢慢恢复
+    injury: null,
+    sleepCap: 100,
     // 连续专注同一件事的计数（用于疲劳递减）
     sleepStreak: 0,
     socialStreak: 0,
@@ -1724,7 +1786,7 @@ function renderEventChoice(sc) {
 /* ---------------- 校园事件池 ---------------- */
 /* 饭堂菜品池：每次事件从里面随机抽 3 个 */
 const FOOD_OPTIONS = [
-  { label: '挑战炸鸡腿', fx: { social: 2, study: -1 }, text: '鸡腿外壳酥脆，里面的肉又香又嫩。你咬了一口，汁水在嘴中炸开。你决定把它记进人生档案。', kind: 'good', journal: '· 饭堂：飘香大鸡腿', onPick: () => collectFood('饭堂·飘香大鸡腿') },
+  { label: '炸鸡腿', fx: { social: 2, study: -1 }, text: '鸡腿外壳酥脆，里面的肉又香又嫩。你咬了一口，汁水在嘴中炸开。你决定把它记进人生档案。', kind: 'good', journal: '· 饭堂：飘香大鸡腿', onPick: () => collectFood('饭堂·飘香大鸡腿') },
   { label: '经典水蒸蛋', fx: { social: 1, sleep: 1 }, text: '水蒸蛋晶莹剔透，面上有一层薄薄的酱油，你用勺子挖了一块送到嘴里，就像吃布丁和果冻。', kind: 'good', journal: '· 饭堂：美味水蒸蛋', onPick: () => collectFood('饭堂·美味水蒸蛋') },
   { label: '冰爽凉粉', fx: { social: 2, sleep: -2 }, text: '一碗凉粉，裹着糖水和蜂蜜，你嗦下一块，感觉夏天的热气和做题的烦恼都消散了。', kind: 'good', journal: '· 饭堂：解暑冰凉粉', onPick: () => collectFood('饭堂·解暑冰凉粉') },
   { label: '生地骨头汤', fx: { social: 1, sleep: 2 }, text: '你喝一口养生汤，味道略微有点苦，但很好喝，你觉得自己已经成为了一个标准的广东人。', kind: 'good', journal: '· 饭堂：养生汤', onPick: () => collectFood('饭堂·养生汤') },
@@ -1753,8 +1815,8 @@ const CAMPUS_EVENTS = [
       body: '你和同伴拿着球拍偷偷从教学楼的后面溜走。\n你刚伸出头，级长就刷新在你身边：「哪个班的？」',
       tag: '校园事件',
       options: [
-        { label: '硬着头皮报隔壁班', fx: { sleep: -1, social: 1 }, text: '你胡乱报了个数字。级长眯眼看了你三秒，居然挥手放行。回教室的路上你心跳如鼓。', kind: 'event', journal: '· 偷偷去打球：报隔壁班过关' },
-        { label: '马上跑', fx: { social: 2, study: -1 }, text: '你头也不回，撒开脚步，和同伴一起冲向天桥。级长叹了口气：「这群孩子真管不住。」你成功躲避了级长的追捕，但后面的巡查更严了。', kind: 'event', journal: '· 偷偷去打球：跑路' },
+        { label: '硬着头皮报隔壁班', fx: { sleep: -1, social: 1 }, text: '你胡乱报了个数字。级长眯眼看了你三秒，居然挥手放行。返回教室的路上你心跳如鼓。', kind: 'event', journal: '· 偷偷去打球：报隔壁班过关' },
+        { label: '马上跑', fx: { social: 2, study: -1 }, text: '你头也不回，撒开脚步，和同伴一起冲向天桥。级长叹了口气：「这群孩子真管不住。」你成功躲避了级长的追捕，但这之后老师也抓得更严了。', kind: 'event', onPick: () => { tryInjure('fall', 0.3); }, journal: '· 偷偷去打球：跑路' },
       ],
     }),
   },
@@ -1763,7 +1825,12 @@ const CAMPUS_EVENTS = [
     build: () => ({
       title: '运动计划',
       body: '今天你想去运动一下。',
-      options: shuffle(SPORT_OPTIONS).slice(0, 3),
+      options: [
+        { label: '去操场跑步', fx: { social: 3, sleep: 2 }, text: '...', kind: 'event',
+          onPick: () => { tryInjure('sport', 0.18); } },
+        { label: '去体育馆打羽毛球', fx: { study: 2, social: 1 }, text: '...', kind: 'good',
+          onPick: () => { tryInjure('sport', 0.22); } },
+      ],
     }),
   },
   {
@@ -1858,6 +1925,7 @@ const CAMPUS_EVENTS = [
       body: '秋季运动会。你报了 4×100 接力最后一棒。冲线那一刻，看台的吼声几乎掀翻遮阳棚——哪怕只拿了第四。',
       fx: { social: 5, sleep: -3, study: -2 },
       journal: '· 运动会接力',
+      onPick: () => { tryInjure('sport', 0.1); },
     }),
   },
   {
@@ -2282,7 +2350,7 @@ function buildArtFestivalEvent() {
         fx: { social: 4, study: 1, sleep: -3 },
         kind: 'event',
         title: `🎭 话剧${playName}`,
-        text: `你被分到了一个台词不多的角色——但每一句都要在台上大声说出来。排练的时候你忘词了两次，第三次终于把整段顺了下来。\n\n演出那天，台下坐着全校的人。你站在幕布后面，听见报幕的声音，手心全是汗。\n\n灯光亮起的时候，你往观众席扫了一眼——有人坐在第三排正中间的位置。`,
+        text: `你被分到了一个台词不多的角色——但每一句都要在台上大声说出来。排练的时候你忘词了两次，第三次终于把整段顺了下来。\n\n演出那天，台下坐着全校的人。你站在幕布后面，听见报幕的声音，手心全是汗。\n\n灯光亮起的时候，你往观众席扫了一眼——你同桌坐在第三排正中间的位置。`,
         journal: `· 艺术节：参演话剧${playName}`,
         onPick: () => { S.flags.artFestivalSeen.push(yearIdx); },
       },
@@ -2291,7 +2359,7 @@ function buildArtFestivalEvent() {
         fx: { social: 5, sleep: -2, study: -1 },
         kind: 'event',
         title: '🎤 校园歌手大赛',
-        text: '初赛在音乐教室进行，评委是三个音乐老师和学生会主席。你唱到副歌的时候破了一个音，但没人笑。\n\n复赛是在体育馆，台下坐了半个年级。你握着话筒，发现手在抖。',
+        text: '初赛在音乐教室进行，评委是三个音乐老师。你唱到副歌的时候破了一个音，但没人笑。\n\n复赛是在体育馆，台下坐了一个年级。你握着话筒，发现手在抖。',
         journal: '· 艺术节：校园歌手大赛',
         onPick: () => { S.flags.artFestivalSeen.push(yearIdx); },
       },
@@ -2552,7 +2620,7 @@ const DAILY_SLOTS = [
     key: 'lunch',
     title: '🍚 午饭 & 午休',
     hint: '中午是全天最自由的一段。',
-    body: '第五节课的下课铃一响，楼道里全是脚步声。饭堂的队伍已经排到了洗手池。许多同学出了校门去寻觅美食。',
+    body: '第五节课的下课铃一响，楼道里全是脚步声。饭堂的队伍已经排到了桌子那。许多同学走出校门，去校外寻觅美食。',
     options: [
       {
         label: '食堂正常吃饭，回宿舍午休', fx: { sleep: 3,  social: -1 },
@@ -2766,6 +2834,27 @@ const DAILY_RANDOM_EVENTS = [
     options: [
       { label: '大方借给他', fx: { social: 3, study: -1 }, title: '🎲 借出笔记', text: '第二天早上，笔记本整整齐齐放在你桌上，里面还夹了一张便利贴：「你圈的重点真准，谢了。」', journal: '· 笔记：大方借出' },
       { label: '婉拒，自己还要用', fx: { social: -1, study: 1 }, title: '🎲 婉拒了', text: '你说自己晚上还要过一遍。同桌「哦」了一声，转回去翻自己的书。那天你没怎么分心，把整章都过完了。', journal: '· 笔记：婉拒（自己复习）' },
+    ],
+  },
+  {
+    title: '🎲 下楼梯的时候扭到脚',
+    body: '晚修下课，楼道里人挤人。你下到一半，脚下一滑——',
+    options: [
+      {
+        label: '扶住扶手，硬撑着走回去',
+        fx: { sleep: -3, study: -2 },
+        title: '🎲 扶着墙回宿舍',
+        text: '你扶着扶手往下走，每一步都钻心地疼。回到宿舍，舍友帮你用冷水敷了一下。',
+        journal: '· 楼梯扭脚（轻度）',
+        onPick: () => { tryInjure('fall', 0.4); },
+      },
+      {
+        label: '停下来，坐在台阶上缓一会儿',
+        fx: { sleep: -1, social: -1 },
+        title: '🎲 坐在台阶上',
+        text: '你在台阶上坐了五分钟，等人都走光了，才慢慢站起来。好像没伤到，只是吓了一下。',
+        journal: '· 楼梯扭脚（有惊无险）',
+      },
     ],
   },
 ];
@@ -2997,8 +3086,8 @@ const BOY_CHARS = {
     refuseBody: 'TA 点点头，把本来要给你的东西揣回兜里：「那我们还是朋友吧。」',
   },
   B: {
-    key: 'B', name: '陆云舒', persona: '阳光学生会长型', club: '学生会',
-    meetPlace: '教学楼大厅的学生会公告板前',
+    key: 'B', name: '陆云舒', persona: '阳光学长型', club: '学生会',
+    meetPlace: '教学楼的公告板前',
     meetLine: '「同学，帮个忙——这张表贴左边还是右边？」',
     hobby: '每次都说「我正好路过」',
     confess: '我一直挺能说的。但是有一句话，我想了两个月都没想好怎么开口。要不……我直接说了？',
@@ -4960,12 +5049,13 @@ function advanceAcademicRounds(steps) {
 
 function finishRound() {
   const previousSem = S.semIdx;
+  tickInjury();
   applySleepConsequences();
   const leaveRounds = maybeTriggerSleepLeave();
 
   // 保留原有的极低睡眠缓冲，但它不能抵消前面的休学判定。
   if (!leaveRounds && S.sleep <= 12) {
-    S.sleep = clamp(S.sleep + DIFFICULTY.crisisRecovery);
+    S.sleep = clamp(S.sleep + DIFFICULTY.crisisRecovery, 0, S.sleepCap || 100);
     journal(`· 身体强制休整 +${DIFFICULTY.crisisRecovery} 睡眠`);
   }
 
@@ -5445,6 +5535,8 @@ function tryRestore() {
     if (typeof S.flags.schoolLore !== 'number') S.flags.schoolLore = 0;
     if (typeof S.flags.dayPass !== 'boolean') S.flags.dayPass = false;
     if (typeof S.dailyIdx !== 'number' || !isFinite(S.dailyIdx) || S.dailyIdx < 0) S.dailyIdx = 0;
+    if (typeof S.sleepCap !== 'number') S.sleepCap = 100;
+    if (S.injury === undefined) S.injury = null;
     if (!CFG.talent) CFG.talent = '学霸胚子';
     // 旧存档没有难度字段，一律按困难恢复。
     if (!CFG.difficulty || !DIFFICULTY_PRESETS[CFG.difficulty]) CFG.difficulty = 'hard';

@@ -966,18 +966,26 @@ function showTrackChoice() {
 $('#btn-track-confirm').addEventListener('click', () => {
   if (!S || S.ended || S.semIdx !== 1) return;
   CFG.track = $('#in-track .selected').dataset.v;
-const extraSelected = Array.from($$('#in-track-extra .selected')).map((b) => b.dataset.v);
-if (extraSelected.length !== 2) {
-  alert('再选科目需要选 2 科');
-  return;
-}
-S.trackExtra = extraSelected;
-S.track = CFG.track;
+  const extraSelected = Array.from($$('#in-track-extra .selected')).map((b) => b.dataset.v);
+  if (extraSelected.length !== 2) {
+    alert('再选科目需要选 2 科');
+    return;
+  }
+  S.trackExtra = extraSelected;
+  S.track = CFG.track;
   if (!S.trackApplied) {
     if (S.track === '物理') applyFx({ study: 3 });
     S.trackApplied = true;
   }
-
+  // 转班判定：普通班 + 成绩好，有机会转入重点班
+  // 放在这里，无论是否休学都会执行
+  if (CFG.className === '普通班' && !S.flags.promotionChecked) {
+    S.flags.promotionChecked = true;
+    const chanceVal = clamp((S.study - 55) / 30, 0, 0.85);
+    if (Math.random() < chanceVal) {
+      S.flags.pendingPromotion = (S.track === '物理') ? '镜堂班' : '容庚班';
+    }
+  }
   // 如果休学跳过了选科节点之后的轮次，选科完成后继续扣除剩余休学时间。
   const pendingLeaveRounds = S.pendingLeaveRounds || 0;
   S.pendingLeaveRounds = 0;
@@ -988,15 +996,6 @@ S.track = CFG.track;
       saveLocal();
       showTrackChoice();
       return;
-    }
-    // 转班判定：普通班 + 成绩好，有机会转入重点班
-    if (CFG.className === '普通班' && !S.flags.promotionChecked) {
-      S.flags.promotionChecked = true;
-      // 学习 55 以下无机会；55~85 线性上升；85 以上概率封顶 85%
-      const chanceVal = clamp((S.study - 55) / 30, 0, 0.85);
-      if (Math.random() < chanceVal) {
-        S.flags.pendingPromotion = (S.track === '物理') ? '镜堂班' : '容庚班';
-      }
     }
     saveLocal();
     if (S.round > totalRounds()) {
@@ -1010,7 +1009,6 @@ S.track = CFG.track;
     }
     return;
   }
-
   saveLocal();
   startSemester();
 });

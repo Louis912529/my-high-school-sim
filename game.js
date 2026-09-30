@@ -101,7 +101,7 @@ function difficultyNote(key) {
 }
 
 // 抓手机的人：年级主任与级长。课堂上 / 晚修里玩手机，被他们逮到概率很大。
-const PHONE_CATCHERS = ['年级主任郑rj', '级长林zy', '级长巨 wf', '级长刘hg', '级长曾y'];
+const PHONE_CATCHERS = ['年级主任郑rj', '级长林zy', '级长巨 wf', '级长练jc', '级长曾y'];
 
 function phoneCatcher() {
   return pick(PHONE_CATCHERS);
@@ -278,8 +278,8 @@ function socialLabel(v) {
 }
 function studyLabel(v) {
   if (v >= 90) return '顶尖';
-  if (v >= 75) return '优秀';
-  if (v >= 50) return '良好';
+  if (v >= 80) return '优秀';
+  if (v >= 60) return '良好';
   if (v >= 30) return '吃力';
   return '危险';
 }
@@ -397,8 +397,8 @@ function trackStudyPenalty() {
 function trackStudyPenaltyLabel() {
   const track = (S && S.track) || CFG.track;
   if (!track) return '';
-  if (CFG.gender === '女' && track === '物理') return '女生学物理：学习收益 -3';
-  if (CFG.gender === '男' && track === '历史') return '男生学历史：学习收益 -3';
+  if (CFG.gender === '女' && track === '物理') return '女生学物理：学习收益 -1';
+  if (CFG.gender === '男' && track === '历史') return '男生学历史：学习收益 -1';
   return '';
 }
 
@@ -1387,7 +1387,7 @@ function chooseMain(act) {
     fx = mainEffects('social');
     title = '🎉 社交月';
     body = pick([
-      '课间吹水、放学打球、周末组局。班级群@你的次数肉眼可见变多——快乐是真的，落下的题也是真的。',
+      '课间吹水、放学打球、周末组局。找你玩的同学变多了——快乐是真的，落下的题也是真的。',
       '你成了班里的气氛组担当。人缘涨了，晚修刷题时间被切得稀碎。',
     ]);
   } else {
@@ -4339,9 +4339,9 @@ function gaokaoBandForStudy(study) {
     };
   }
   return {
-    id: 'front', label: '年级前沿', rangeLabel: '635～690 分',
+    id: 'front', label: '年级前沿', rangeLabel: '635～700 分',
     low: 635, high: 690,
-    expected: Math.round(635 + ((value - 78) / 22) * 55),
+    expected: Math.round(635 + ((value - 78) / 22) * 65),
   };
 }
 

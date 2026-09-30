@@ -316,31 +316,40 @@ button { -webkit-appearance: none; }
 }
 .event-card {
   flex: 0 0 auto; padding: 13px 13px;
-  background: rgba(255, 253, 247, .75);   /* 原来是 var(--card)，不透明 */
+  background: rgba(255, 253, 247, .72);   /* 半透明卡片 */
   border: 1px solid var(--line); border-left: 4px solid var(--orange);
   border-radius: 10px; box-shadow: var(--shadow); animation: pop .25s ease;
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
 }
 .event-card.love-card-event { border-left-color: #c88799; background: #fff8f7; }
 .event-card.exam-card { border-left-color: #6d8faa; background: #f7faf9; }
 .event-card.bad-card { border-left-color: var(--red); background: #fff9f5; }
 .event-card.good-card { border-left-color: var(--green-2); }
 .event-tag {
-  display: inline-block; padding: 2px 7px; border-radius: 99px;
-  background: rgba(244, 240, 225, .55); color: var(--muted);
-  border: 1px solid rgba(215, 208, 185, .7);
+  display: inline-block; padding: 2px 8px; border-radius: 99px;
+  background: rgba(244, 240, 225, .28);            /* 更透 */
+  color: var(--muted);
+  border: 1px solid rgba(215, 208, 185, .5);
   font-size: 10px; margin-bottom: 7px; letter-spacing: .4px;
+  -webkit-backdrop-filter: blur(6px);              /* iOS 前缀 */
+  backdrop-filter: blur(6px);
 }
 .event-title { color: var(--ink); font-size: 16px; font-weight: 900; margin-bottom: 6px; letter-spacing: .3px; }
 .event-card.love-card-event .event-title { color: #9c5d70; }
 .event-body { color: #53564c; font-size: 13.5px; line-height: 1.75; white-space: pre-line; }
 .fx-row { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
-.fx-pill { padding: 3px 7px; border-radius: 99px; font-size: 11px; font-weight: 800; }
-.fx-pill.sleep  { background: rgba(225, 234, 240, .5); color: #5e7f94; }
-.fx-pill.social { background: rgba(248, 234, 214, .5); color: #a66a24; }
-.fx-pill.study  { background: rgba(225, 236, 226, .5); color: #477051; }
-.fx-pill.neg    { background: rgba(244, 223, 224, .5); color: #a35358; }
-.fx-pill.love   { background: rgba(247, 227, 231, .5); color: #9c5d70; }
-.fx-pill.neu    { background: rgba(244, 240, 225, .5); color: var(--muted); }
+.fx-pill { 
+  padding: 3px 8px; border-radius: 99px; font-size: 11px; font-weight: 800;
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+.fx-pill.sleep  { background: rgba(225, 234, 240, .3); color: #4f6d82; }
+.fx-pill.social { background: rgba(248, 234, 214, .3); color: #965e1f; }
+.fx-pill.study  { background: rgba(225, 236, 226, .3); color: #3d6346; }
+.fx-pill.neg    { background: rgba(244, 223, 224, .3); color: #94484d; }
+.fx-pill.love   { background: rgba(247, 227, 231, .3); color: #8d5265; }
+.fx-pill.neu    { background: rgba(244, 240, 225, .3); color: var(--muted); }
 /* margin-top: auto 让「本月安排 / 剧情选择」始终贴在剧情流底部：
    日志区变高之后，如果不吸底，模块会浮在中间、下面空出一大块。 */
 .action-area {

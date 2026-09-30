@@ -4563,6 +4563,7 @@ function computeScore() {
 
 function doEnding() {
   S.ended = true;
+  saveLocal();
   const score = computeScore();
   const gaokao = S.gaokao;
   const ac = academicEnding(score);
@@ -4783,7 +4784,14 @@ function tryRestore() {
     const raw = store.get('xx2_save', null);
     if (!raw) return false;
     const data = JSON.parse(raw);
-    if (!data.S || data.S.ended || !data.S.name) return false;
+    if (!data.S || data.S.ended || !data.S.name) {
+      store.del('xx2_save');   // ← 新增：完局的档直接清掉，不再反复询问
+      return false;
+    }
+    if (data.S.round > (data.S.rounds || 90)) {
+      store.del('xx2_save');
+      return false;
+    }
     const go = confirm(`检测到存档：${data.S.name}（第 ${data.S.round} 轮）\n\n确定 = 继续，取消 = 重新开始`);
     if (!go) { store.del('xx2_save'); return false; }
     S = data.S;

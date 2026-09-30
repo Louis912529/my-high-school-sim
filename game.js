@@ -70,8 +70,8 @@ const DIFFICULTY_PRESETS = Object.freeze({
     examInterval: 5,          // 每 N 轮一次考试
     crisisRecovery: 6,        // 极低睡眠时的强制休整回补
     rankOffset: 8,            // 排名中心额外后移（同样学习属性名次更靠后）
-    gaokaoPenalty: [5, 12],  // 发挥失常：高考实际分数额外扣减区间
-    leaveChanceMul: 1,        // 休学概率倍率
+    gaokaoPenalty: [10, 30],  // 发挥失常：高考实际分数额外扣减区间
+    leaveChanceMul: 0.85,        // 休学概率倍率
     affMul: 1,                // 好感增长倍率
   }),
   hell: Object.freeze({
@@ -83,8 +83,8 @@ const DIFFICULTY_PRESETS = Object.freeze({
     examInterval: 4,
     crisisRecovery: 3,
     rankOffset: 22,
-    gaokaoPenalty: [10, 18],
-    leaveChanceMul: 1.35,
+    gaokaoPenalty: [15, 32],
+    leaveChanceMul: 1.05,
     affMul: 0.7,
   }),
 });
@@ -421,10 +421,10 @@ function mainEffects(act) {
   if (CFG.gender === '女' && S && S.track === '物理') studyBonus -= 3;
   if (CFG.gender === '男' && S && S.track === '历史') studyBonus -= 3;
   // 班级特长：镜堂班 + 物理、容庚班 + 历史 有学习增益
-  if (CFG.className === '镜堂班' && S && S.track === '物理') studyBonus += 2;
-  if (CFG.className === '容庚班' && S && S.track === '历史') studyBonus += 2;
+  if (CFG.className === '镜堂班' && S && S.track === '物理') studyBonus += 1;
+  if (CFG.className === '容庚班' && S && S.track === '历史') studyBonus += 1;
   // 普通班师资分散，学习收益更低
-  if (CFG.className === '普通班') studyBonus -= 2;
+  if (CFG.className === '普通班') studyBonus -= 1;
 
   const studyGain = Math.max(1, Math.round((7 - level + studyBonus) * mul));
   return { sleep: -(5 + level), social: -(3 + level), study: studyGain };
@@ -695,22 +695,22 @@ function startForcedLeave(months, triggerChance) {
 
 // 低于阈值不必每次必然休学，但睡眠越低，特殊情况越容易触发。
 function maybeTriggerSleepLeave() {
-  if (S.sleep >= 60) return 0;
-  if (S.sleep < 50) {
-    const yearChance = sleepLeaveChance(S.sleep, 50, 0.18, 0.014);
+  if (S.sleep >= 50) return 0;
+  if (S.sleep < 45) {
+    const yearChance = sleepLeaveChance(S.sleep, 45, 0.06, 0.006);
     S.lastLeaveChance = { months: 12, chance: yearChance, sleep: S.sleep };
     if (chance(yearChance)) return startForcedLeave(12, yearChance);
     return 0;
   }
-  const monthChance = sleepLeaveChance(S.sleep, 60, 0.16, 0.012);
+  const monthChance = sleepLeaveChance(S.sleep, 55, 0.04, 0.004);
   S.lastLeaveChance = { months: 1, chance: monthChance, sleep: S.sleep };
   if (chance(monthChance)) return startForcedLeave(1, monthChance);
   return 0;
 }
 
 function sleepRiskHint(sleep) {
-  if (sleep < 50) return `低于 50：本轮强制休学 1 年概率约 ${chancePercent(sleepLeaveChance(sleep, 50, 0.18, 0.014))}%`;
-  if (sleep < 60) return `低于 60：本轮强制休学 1 个月概率约 ${chancePercent(sleepLeaveChance(sleep, 60, 0.16, 0.012))}%`;
+  if (sleep < 40) return `低于 50：本轮强制休学 1 年概率约 ${chancePercent(sleepLeaveChance(sleep, 50, 0.18, 0.014))}%`;
+  if (sleep < 50) return `低于 60：本轮强制休学 1 个月概率约 ${chancePercent(sleepLeaveChance(sleep, 60, 0.16, 0.012))}%`;
   return '';
 }
 
@@ -895,7 +895,7 @@ function trackAptitudeNote(track) {
   if (CFG.gender === '男' && t === '历史') parts.push('⚠ 男生学历史：学习收益 -3');
   if (CFG.className === '镜堂班' && t === '物理') parts.push('✓ 镜堂班 + 物理：学习收益 +2');
   if (CFG.className === '容庚班' && t === '历史') parts.push('✓ 容庚班 + 历史：学习收益 +2');
-  if (CFG.className === '普通班') parts.push('⚠ 普通班：学习收益 -2，但社交收益和睡眠收益更好');
+  if (CFG.className === '普通班') parts.push('⚠ 普通班：学习收益 -1，但社交收益和睡眠收益更好');
   return parts.length ? parts.join('　') : '当前组合没有额外加成或惩罚。';
 }
 
@@ -988,6 +988,15 @@ S.track = CFG.track;
       saveLocal();
       showTrackChoice();
       return;
+    }
+    // 转班判定：普通班 + 成绩好，有机会转入重点班
+    if (CFG.className === '普通班' && !S.flags.promotionChecked) {
+      S.flags.promotionChecked = true;
+      // 学习 55 以下无机会；55~85 线性上升；85 以上概率封顶 85%
+      const chanceVal = clamp((S.study - 55) / 30, 0, 0.85);
+      if (Math.random() < chanceVal) {
+        S.flags.pendingPromotion = (S.track === '物理') ? '镜堂班' : '容庚班';
+      }
     }
     saveLocal();
     if (S.round > totalRounds()) {
@@ -1104,6 +1113,8 @@ function newGame() {
       schoolLore: 0,
       dayPass: false,
       phoneChoiceSem: -1,
+      promotionChecked: false,
+      pendingPromotion: null,
       artShowsSeen: [],
       artFestivalSeen: [],
     },
@@ -1129,9 +1140,9 @@ function newGame() {
   if (CFG.className === '容庚班') S.study = clamp(S.study + 8);
   // 普通班：学习收益降低，但社交和睡眠更多（师资倾斜）
   if (CFG.className === '普通班') {
-    S.study = clamp(S.study - 3);
-    S.social = clamp(S.social + 5);
-    S.sleep = clamp(S.sleep + 5);
+    S.study = clamp(S.study - 1);
+    S.social = clamp(S.social + 3);
+    S.sleep = clamp(S.sleep + 3);
   }
 
   // 恋爱线：开局只是「还没遇见」，对象在开学后由剧情确定。
@@ -1266,7 +1277,7 @@ function gateChoices(area) {
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.className = 'choices-unlock';
-  btn.innerHTML = '<span class="cu-icon">📖</span><span class="cu-text">先看完上面的剧情，看完再点这里选</span>';
+  btn.innerHTML = '<span class="cu-icon">📖</span><span class="cu-text">看完剧情后<b>点这里做选择</b></span>';
   btn.onclick = () => {
     choices.classList.remove('gated');
     btn.remove();
@@ -1529,6 +1540,46 @@ function buildPhoneChoiceEvent() {
 }
 function buildEventQueue() {
   QUEUE = [];
+  // 转班事件优先处理：一旦 pendingPromotion 有值，先弹这张卡
+  if (S.flags && S.flags.pendingPromotion) {
+    const targetClass = S.flags.pendingPromotion;
+    S.flags.pendingPromotion = null;
+    QUEUE.push({
+      t: 'choice',
+      kicker: '🏫 转班机会',
+      hint: '班主任把你叫到办公室',
+      moduleClass: 'event-choice-module',
+      intro: {
+        kind: 'event',
+        title: '🏫 转班机会',
+        body: `下课铃响，班主任在走廊上叫住你：「去趟年级办公室。」\n\n年级主任翻着成绩单，抬头看了你一眼：「高一期末考得不错。${targetClass}正好有一个名额，你想不想转过去？」\n\n你说「我考虑一下」，走出办公室的时候，走廊上已经没什么人了。`,
+      },
+      options: [
+        {
+          label: `接受，转入${targetClass}`,
+          fx: { study: 5, social: -3, sleep: -2 },
+          kind: 'good',
+          title: `🏫 转进${targetClass}`,
+          text: `你在转班表上签了字。第二天早读，你抱着书站在新教室门口。\n\n里面的人都抬头看了你一眼，然后低下头继续背单词。\n\n你找到自己的位置坐下。同桌没说话，往旁边挪了半个位置。`,
+          journal: `· 高一下转入${targetClass}`,
+          onPick: () => {
+            CFG.className = targetClass;
+            S.className = targetClass;
+            netBroadcast(`从普通班转进了${targetClass}`, '🏫');
+          },
+        },
+        {
+          label: '婉拒，留在普通班',
+          fx: { study: -1, social: 3 },
+          kind: 'event',
+          title: '🏫 留在了原来的班',
+          text: `「谢谢老师，我还是想留在原来班里。」\n\n年级主任看了你两秒，点点头：「行。那你继续加油。」\n\n你走出办公室的时候，正好赶上上课铃。`,
+          journal: '· 拒绝了转班机会',
+        },
+      ],
+    });
+    loveQuotaTick();
+  }
   // 3月 / 5月 / 12月的学校开放日按月份固定触发一次；普通校园事件仍照常保留。
   const openDay = buildOpenDayEvent();
   if (openDay) { QUEUE.push(openDay); loveQuotaTick(); }
@@ -1983,13 +2034,13 @@ const CAMPUS_EVENTS = [
     t: 'choice',
     build: () => ({
       title: '莞城美食地图',
-      body: isBoarder() ? '住宿生趁周末、高一高二放假或高三混出去的机会，终于能去校外找点好吃的。' : '走读放学后，你不用吃饭堂，顺路去莞城解决一顿。',
+      body: isBoarder() ? '你打算去校外找点好吃的，那么去哪里吃呢？' : '放学后，你不想吃饭堂，打算顺路去莞城解决一顿。',
       options: [
-        { label: '老鸭粉丝汤', fx: { social: 3, sleep: 1 }, text: '热气先把人哄好了。你吃完才发现，今天的坏心情已经没剩多少。', kind: 'good', journal: '· 校外：老鸭粉丝汤', onPick: () => collectFood('校外·老鸭粉丝汤') },
+        { label: '老鸭粉丝汤', fx: { social: 3, sleep: 1 }, text: '汤粉的热气先把人给哄好了，你吃完才发现，今天的坏心情已经没剩多少。', kind: 'good', journal: '· 校外：老鸭粉丝汤', onPick: () => collectFood('校外·老鸭粉丝汤') },
         { label: '莞留香', fx: { social: 3, study: 1 }, text: '店里的味道稳稳当当，适合在一周被卷完之后认真吃一顿。', kind: 'good', journal: '· 校外：莞留香', onPick: () => collectFood('校外·莞留香') },
         { label: '鹅好味', fx: { social: 3, sleep: 1 }, text: '烧腊切开时还带着光。你决定下次再来，顺便把同桌也带上。', kind: 'good', journal: '· 校外：鹅好味', onPick: () => collectFood('校外·鹅好味') },
         { label: '品中品', fx: { social: 2, study: 1 }, text: '饭菜好吃，汤也可口。你用一顿饭把自己从考试周里捞了出来。', kind: 'good', journal: '· 校外：品中品', onPick: () => collectFood('校外·品中品') },
-        { label: '鲜汇', fx: { social: 3, sleep: 1 }, text: '奶茶、菠萝包和一会儿不用讨论成绩的时间，组成了一个很像假期的晚上。', kind: 'good', journal: '· 校外：鲜汇', onPick: () => collectFood('校外·茶餐厅') },
+        { label: '鲜汇', fx: { social: 3, sleep: 1 }, text: '滑蛋牛肉饭和不用讨论成绩的时间，组成了一个很像假期的晚上。', kind: 'good', journal: '· 校外：鲜汇', onPick: () => collectFood('校外·茶餐厅') },
       ],
     }),
   },
@@ -2306,7 +2357,7 @@ const DAILY_LORE_NEED = 3;          // 集齐 3 条校史线索解锁「校史�
 // 校史秘闻线索（放学后去操场 / 绿瓦楼散步时随机翻到一条）
 const DAILY_LORE_CLUES = [
   '一九一九年，北京‘五四’运动消息传到广州，五月十一日下午，广州成立广东中等学校以上学生联合会，东莞中学联合会也成立了，东莞中学学生随即投入到五四运动的洪流中去。——《莞中往事》',
-  '1926年3月28日下午，蒋介石亲临东莞中学视察，发表演说，谈入党意义，赞扬莞中学生革命精神，时任国民党军统帅从在繁忙的军务中拔冗到一所普通中学演讲，并给予高度评价，可见莞中对社会影响之大。——《大革命时期的红色莞中》',
+  '1926年3月28日下午，蒋介石亲临东莞中学视察，发表演说，谈入党意义，赞扬莞中学生革命精神，国民党军统帅能从繁忙的军务中拔冗到一所普通中学演讲，并给予高度评价，可见莞中对社会影响之大。——《大革命时期的红色莞中》',
   '1924——1927年间，中国大地上发生了一场轰轰烈烈的反帝反封建革命战争，历史上称为第一次国内革命战争。国民党改组、东征北伐、四·一二政变等等轰动的历史事件陆续发生，革命旋涡之中的东莞中学，染上浓厚的红色革命色彩。——《莞中往事》',
   '1924年12月，中国共产党在东莞的第一个党支部在东莞中学成立，莫萃华任首任支部书记。——《大革命时期的红色莞中》',
   '东莞中学的共产思想始于1923年。孟山公园（现东莞人民公园）南城墙上的风满楼是东莞中学进步学生学习革命理论传播革命思想的地方。——《大革命时期的红色莞中》',
@@ -2642,6 +2693,8 @@ function dailySlotIndex() {
   if (typeof S.dailyIdx !== 'number' || !isFinite(S.dailyIdx) || S.dailyIdx < 0) S.dailyIdx = 0;
   if (typeof S.phone !== 'boolean') S.phone = true;
   if (typeof S.flags.phoneChoiceSem !== 'number') S.flags.phoneChoiceSem = -1;
+  if (typeof S.flags.promotionChecked !== 'boolean') S.flags.promotionChecked = false;
+  if (typeof S.flags.pendingPromotion !== 'string') S.flags.pendingPromotion = null;
   return S.dailyIdx % DAILY_SLOTS.length;
 }
 function advanceDailySlot() {
@@ -4224,7 +4277,7 @@ function buildLoveFestivalEvent() {
       intro: {
         kind: 'love',
         title: '🎄 圣诞节',
-        body: `12 月 25 日，晚自习前。走廊的窗上贴满了手剪的雪花，广播里放着很吵的歌。\n\n${ta}在你桌边停下来。`,
+        body: `12 月 25 日，晚自习前。走廊的窗上贴了手剪的雪花，广播里放着陈奕迅的《Lonely Christmas》。\n\n${ta}在你桌边停下来。`,
       },
       options: [
         lover
@@ -4257,31 +4310,38 @@ function buildLoveFestivalEvent() {
 /*对应莞中水平*/ 
 function gaokaoBandForStudy(study) {
   const value = clamp(study);
-  if (value < 40) {
+  if (value < 30) {
     return {
-      id: 'bottom', label: '年级末流', rangeLabel: '470 分以下',
-      low: 390, high: 469,
-      expected: Math.round(390 + (value / 40) * 79),
+      id: 'bottom', label: '年级末流', rangeLabel: '470 分上下',
+      low: 465, high: 505,
+      expected: Math.round(465 + (value / 30) * 40),
     };
   }
-  if (value < 50) {
+  if (value < 45) {
     return {
-      id: 'middle', label: '年级中游', rangeLabel: '470～530 分',
-      low: 470, high: 530,
-      expected: Math.round(470 + ((value - 40) / 10) * 60),
+      id: 'low', label: '年级中下游', rangeLabel: '505～545 分',
+      low: 505, high: 545,
+      expected: Math.round(505 + ((value - 30) / 15) * 40),
     };
   }
-  if (value < 65) {
+  if (value < 60) {
     return {
-      id: 'upper-middle', label: '年级中上游', rangeLabel: '530～570 分',
-      low: 530, high: 570,
-      expected: Math.round(530 + ((value - 50) / 15) * 40),
+      id: 'middle', label: '年级中游', rangeLabel: '545～585 分',
+      low: 545, high: 585,
+      expected: Math.round(545 + ((value - 45) / 15) * 40),
+    };
+  }
+  if (value < 78) {
+    return {
+      id: 'upper-middle', label: '年级中上游', rangeLabel: '585～635 分',
+      low: 585, high: 635,
+      expected: Math.round(585 + ((value - 60) / 18) * 50),
     };
   }
   return {
-    id: 'front', label: '年级前沿', rangeLabel: '570～690 分',
-    low: 570, high: 690,
-    expected: Math.round(570 + ((value - 65) / 35) * 120),
+    id: 'front', label: '年级前沿', rangeLabel: '635～690 分',
+    low: 635, high: 690,
+    expected: Math.round(635 + ((value - 78) / 22) * 55),
   };
 }
 
@@ -4537,13 +4597,12 @@ function computeScore() {
     (S.sleep - 70) * 0.08 +
     (S.social - 50) * 0.04 +
     (S.love && S.love.aff >= 71 ? 3 : 0) +
-    (CFG.className === '容庚班' ? 5 : 0) +
-    (CFG.className === '镜堂班' ? 8 : 0) +
+    (CFG.className === '镜堂班' ? 4 : 0) +   // 8 → 3
+    (CFG.className === '容庚班' ? 3 : 0) +   // 5 → 3
     rnd(-4, 4)
   ), -8, 8);
   const expectedScore = clamp(band.expected + lifestyleAdjustment, band.low, band.high);
 
-  // 高三（发挥失常）：普通 5~12，困难 10~18
   const penaltyRange = DIFFICULTY.gaokaoPenalty;
   const competitionPenalty = S.semIdx >= 4 ? rnd(penaltyRange[0], penaltyRange[1]) : 0;
   const finalScore = clamp(expectedScore - competitionPenalty, 200, 750);

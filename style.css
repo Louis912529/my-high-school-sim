@@ -266,8 +266,11 @@ button { -webkit-appearance: none; }
 }
 .hud {
   flex-shrink: 0; padding: 8px 13px 6px;
-  background: var(--paper); border-bottom: 1px solid var(--line);
+  background: rgba(250, 245, 226, .78);      /* 原来是 var(--paper)，不透明 */
+  border-bottom: 1px solid var(--line);
   box-shadow: 0 2px 8px rgba(91,78,45,.05); z-index: 2;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
 }
 .hud-top { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; }
 .hud-left h2 { color: var(--green); font-size: 14px; font-weight: 900; letter-spacing: .3px; }
@@ -328,7 +331,7 @@ button { -webkit-appearance: none; }
 .event-card.good-card { border-left-color: var(--green-2); }
 .event-tag {
   display: inline-block; padding: 2px 8px; border-radius: 99px;
-  background: rgba(244, 240, 225, .28);            /* 更透 */
+  background: rgba(244, 240, 225, .18);            /* 更透 */
   color: var(--muted);
   border: 1px solid rgba(215, 208, 185, .5);
   font-size: 10px; margin-bottom: 7px; letter-spacing: .4px;
@@ -342,7 +345,7 @@ button { -webkit-appearance: none; }
 .fx-pill { 
   padding: 3px 8px; border-radius: 99px; font-size: 11px; font-weight: 800;
   -webkit-backdrop-filter: blur(6px);
-  backdrop-filter: blur(6px);
+  backdrop-filter: blur(10px);
 }
 .fx-pill.sleep  { background: rgba(225, 234, 240, .3); color: #4f6d82; }
 .fx-pill.social { background: rgba(248, 234, 214, .3); color: #965e1f; }
@@ -424,7 +427,7 @@ button { -webkit-appearance: none; }
   min-height: auto;
   background: var(--paper-3);
   border-top: 1px solid var(--line);
-  padding: 8px 11px 10px;
+  padding: 5px 10px 5px;
 }
 .footer-label { color: var(--muted); font-size: 11px; margin-bottom: 4px; }
 .journal {
@@ -450,7 +453,7 @@ button { -webkit-appearance: none; }
 .journal .j-delta { color: var(--red); }
 .journal .j-ok { color: var(--green-2); }
 .footer-btns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
-.mini-btn { min-height: 34px; padding: 6px 5px; border-radius: 8px; background: var(--card); border: 1px solid var(--line); color: var(--green); font-size: 11px; cursor: pointer; }
+.mini-btn { min-height: 28px; padding: 4px 5px; border-radius: 8px; background: var(--card); border: 1px solid var(--line); color: var(--green); font-size: 11px; cursor: pointer; }
 .mini-btn.on { background: var(--green); border-color: var(--green); color: #fffdf7; }
 
 /* 选项闸门：默认折叠，玩家点提示条后才展开 */
@@ -520,14 +523,11 @@ button { -webkit-appearance: none; }
 }
 
 @media (max-height: 650px) {
-  .footer { flex-basis: 120px; min-height: 120px; }
-  .journal { height: 42px; min-height: 42px; max-height: 42px; }
   .log { min-height: 190px; }
 }
 
 @media (max-height: 550px) {
-  .footer { flex-basis: 108px; min-height: 108px; padding-top: 6px; }
-  .journal { height: 33px; min-height: 33px; max-height: 33px; margin-bottom: 5px; }
+  .footer { padding-top: 4px; padding-bottom: 4px; }
   .log { min-height: 170px; }
 }
 /* 再选科目（化学/生物/地理/政治）选中状态 */

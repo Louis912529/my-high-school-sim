@@ -58,7 +58,7 @@ function talentFx(name) {
    两档：
    · hard 普通 —— 原本的默认强度。
    · hell 困难 —— 新增的更高难度模式：考试更密、属性收益更低、
-     休学更容易、高考竞争扣分更狠、恋爱推进更慢。
+     休学更容易、发挥失常扣分更多、恋爱推进更慢。
    所有数值集中在预设里，改一处即可同时影响全局。 */
 const DIFFICULTY_PRESETS = Object.freeze({
   hard: Object.freeze({
@@ -1612,6 +1612,8 @@ function buildEventQueue() {
   let loveItem = buildLoveMeetEvent();
   if (!loveItem) loveItem = buildLoveFestivalEvent();
   if (!loveItem) loveItem = buildLoveStoryEvent();
+  // 好感节点里程碑：优先级高于日常恋爱，低于遇见 / 节日 / 主线
+  if (!loveItem) loveItem = buildLoveMilestoneEvent();
 
   // 日常恋爱内容（闲聊 / 手机消息 / 约会 / 吵架）受配额控制，
   // 这是把恋爱剧情压到 1/3 的主要闸门。
@@ -1720,6 +1722,28 @@ function renderEventChoice(sc) {
 }
 
 /* ---------------- 校园事件池 ---------------- */
+/* 饭堂菜品池：每次事件从里面随机抽 3 个 */
+const FOOD_OPTIONS = [
+  { label: '挑战炸鸡腿', fx: { social: 2, study: -1 }, text: '鸡腿外壳酥脆，里面的肉又香又嫩。你咬了一口，汁水在嘴中炸开。你决定把它记进人生档案。', kind: 'good', journal: '· 饭堂：飘香大鸡腿', onPick: () => collectFood('饭堂·飘香大鸡腿') },
+  { label: '经典水蒸蛋', fx: { social: 1, sleep: 1 }, text: '水蒸蛋晶莹剔透，面上有一层薄薄的酱油，你用勺子挖了一块送到嘴里，就像吃布丁和果冻。', kind: 'good', journal: '· 饭堂：美味水蒸蛋', onPick: () => collectFood('饭堂·美味水蒸蛋') },
+  { label: '冰爽凉粉', fx: { social: 2, sleep: -2 }, text: '一碗凉粉，裹着糖水和蜂蜜，你嗦下一块，感觉夏天的热气和做题的烦恼都消散了。', kind: 'good', journal: '· 饭堂：解暑冰凉粉', onPick: () => collectFood('饭堂·解暑冰凉粉') },
+  { label: '生地骨头汤', fx: { social: 1, sleep: 2 }, text: '你喝一口养生汤，味道略微有点苦，但很好喝，你觉得自己已经成为了一个标准的广东人。', kind: 'good', journal: '· 饭堂：养生汤', onPick: () => collectFood('饭堂·养生汤') },
+  { label: '番茄炒蛋', fx: { social: 3, study: 1 }, text: '你从小就喜欢吃番茄炒蛋，喜欢这咸甜的味道，食堂的番茄炒蛋虽然没有妈妈做的好吃，但味道已经很不错了。', kind: 'good', journal: '· 饭堂：番茄炒蛋', onPick: () => collectFood('饭堂·番茄炒蛋') },
+  { label: '梅菜蒸肉饼', fx: { social: 1, sleep: -1 }, text: '你在家里很少吃到肉饼，爸爸做的肉饼有点柴，没什么味道，相比之下，食堂的肉饼就很好吃。', kind: 'good', journal: '· 饭堂：肉饼', onPick: () => collectFood('饭堂·肉饼') },
+  { label: '青椒炒回锅肉', fx: { social: 2, study: -1 }, text: '你感觉这是你在学校吃过最香的菜，青椒和肉都很下饭，香气四溢的回锅肉正好犒劳学累了的自己。', kind: 'good', journal: '· 饭堂：回锅肉', onPick: () => collectFood('饭堂·回锅肉') },
+  { label: '蒜蓉粉丝蒸龙利鱼', fx: { social: 1, study: 2 }, text: '你咬了一口鱼，感觉美味得不真实，鱼肉鲜嫩可口，还没有鱼刺，搭配蒜蓉粉丝，可以下一大勺饭。', kind: 'good', journal: '· 饭堂：蒜蓉粉丝蒸龙利鱼', onPick: () => collectFood('饭堂·蒜蓉粉丝蒸龙利鱼') },
+  { label: '萝卜焖牛腩', fx: { social: 1, sleep: 1, study: 1 }, text: '牛肉和萝卜都炖得很烂，像家里的味道，每次炖牛肉，香味能从厨房飘到卧室。', kind: 'good', journal: '· 饭堂：炖牛肉', onPick: () => collectFood('饭堂·炖牛肉') },
+  { label: '酸菜鱼', fx: { social: 1, sleep: 2, study: -1 }, text: '十几片鱼片铺在豆芽、青菜和酸菜上，你尝了一片，嫩滑美味，有的鱼片有小鱼刺，你吃得很小心。', kind: 'good', journal: '· 饭堂：酸菜鱼', onPick: () => collectFood('饭堂·酸菜鱼') },
+];
+
+/* 校外美食池：每次事件从里面随机抽 3 个 */
+const MEISHI_OPTIONS = [
+  { label: '老鸭粉丝汤', fx: { social: 3, sleep: 1 }, text: '汤粉的热气先把人给哄好了，你吃完才发现，今天的坏心情已经没剩多少。', kind: 'good', journal: '· 校外：老鸭粉丝汤', onPick: () => collectFood('校外·老鸭粉丝汤') },
+  { label: '莞留香', fx: { social: 3, study: 1 }, text: '店里的味道稳稳当当，适合在一周被卷完之后认真吃一顿。', kind: 'good', journal: '· 校外：莞留香', onPick: () => collectFood('校外·莞留香') },
+  { label: '鹅好味', fx: { social: 3, sleep: 1 }, text: '烧腊切开时还带着光。你决定下次再来，顺便把同桌也带上。', kind: 'good', journal: '· 校外：鹅好味', onPick: () => collectFood('校外·鹅好味') },
+  { label: '品中品', fx: { social: 2, study: 1 }, text: '饭菜好吃，汤也可口。你用一顿饭把自己从考试周里捞了出来。', kind: 'good', journal: '· 校外：品中品', onPick: () => collectFood('校外·品中品') },
+  { label: '鲜汇', fx: { social: 3, sleep: 1 }, text: '滑蛋牛肉饭和不用讨论成绩的时间，组成了一个很像假期的晚上。', kind: 'good', journal: '· 校外：鲜汇', onPick: () => collectFood('校外·鲜汇') },
+];
 const CAMPUS_EVENTS = [
   {
     t: 'choice',
@@ -1739,10 +1763,7 @@ const CAMPUS_EVENTS = [
     build: () => ({
       title: '运动计划',
       body: '今天你想去运动一下。',
-      options: [
-        { label: '去操场跑步', fx: { social: 3, sleep: 2 }, text: '你在操场跑了几圈，途中不时和同学打招呼，还遇到了老师，跑完以后，你感觉全身都轻松了。', kind: 'event' },
-        { label: '去体育馆打羽毛球', fx: { study: 2, social: 1 }, text: '你用最快的速度冲到体育馆三楼，抢到了最好的场，打了好几场酣畅淋漓的单打，最后精疲力竭，差点连回宿舍洗澡的力气都没有。', kind: 'good' },
-      ],
+      options: shuffle(SPORT_OPTIONS).slice(0, 3),
     }),
   },
   {
@@ -2009,8 +2030,8 @@ const CAMPUS_EVENTS = [
           label: '不帮住宿生带早餐',
           fx: { social: -2, sleep: 2 ,study: -1},
           resolve: () => chance(0.45)
-            ? { fx: { social: 1, sleep: 1 }, kind: 'good', title: '同学觉得你确实很赶，也没有责怪你', text: '你和同学们还是好朋友。', journal: '· 同学理解' }
-            : { fx: { social: -3, study: -1 }, kind: 'bad', title: '同学觉得你就多带一份没什么大不了的', text: '有的同学觉得你很小气。', journal: '· 同学不高兴' },
+            ? { fx: { social: 1, sleep: 1 }, kind: 'good', title: '同学觉得你确实很赶，也没有责怪你', text: '你和同学们还是好哥们。', journal: '· 同学表示理解' }
+            : { fx: { social: -3, study: -1 }, kind: 'bad', title: '同学觉得你就多带一份没什么大不了的', text: '有的同学觉得你有点小气。', journal: '· 同学有点不高兴' },
         },
       ],
     }),
@@ -2020,12 +2041,8 @@ const CAMPUS_EVENTS = [
     condition: () => isBoarder(),
     build: () => ({
       title: '饭堂珍馐图鉴',
-      body: '住宿生在饭堂有时会遇到一些出乎意料的菜。今天的菜单像满汉全席。',
-      options: [
-        { label: '挑战炸鸡腿', fx: { social: 2, study: -1 }, text: '鸡腿外壳酥脆，里面的肉又香又嫩。你咬了一口，汁水在嘴中炸开。你决定把它记进人生档案。', kind: 'bad', journal: '· 饭堂：神秘的冰冻大鸡腿', onPick: () => collectFood('饭堂·神秘的冰冻大鸡腿') },
-        { label: '经典水蒸蛋', fx: { social: 1, sleep: -1 }, text: '水蒸蛋晶莹剔透，面上有一层薄薄的酱油，你用勺子挖了一块送到嘴里，就像吃布丁和果冻。', kind: 'bad', journal: '· 饭堂：软的薯条', onPick: () => collectFood('饭堂·软的薯条') },
-        { label: '冰爽凉粉', fx: { social: 2, sleep: -2 }, text: '一碗凉粉，裹着糖水和蜂蜜，你嗦下一块，感觉夏天的热气和做题的烦恼都消散了。', kind: 'bad', journal: '· 饭堂：一袋宵夜半袋油', onPick: () => collectFood('饭堂·一袋宵夜半袋油') },
-      ],
+      body: '住宿生在饭堂有时会遇到一些出乎意料的菜。今天的菜单像满汉全席，你站在窗口前挑了几样。',
+      options: shuffle(FOOD_OPTIONS).slice(0, 3),
     }),
   },
   {
@@ -2033,13 +2050,7 @@ const CAMPUS_EVENTS = [
     build: () => ({
       title: '莞城美食地图',
       body: isBoarder() ? '你打算去校外找点好吃的，那么去哪里吃呢？' : '放学后，你不想吃饭堂，打算顺路去莞城解决一顿。',
-      options: [
-        { label: '老鸭粉丝汤', fx: { social: 3, sleep: 1 }, text: '汤粉的热气先把人给哄好了，你吃完才发现，今天的坏心情已经没剩多少。', kind: 'good', journal: '· 校外：老鸭粉丝汤', onPick: () => collectFood('校外·老鸭粉丝汤') },
-        { label: '莞留香', fx: { social: 3, study: 1 }, text: '店里的味道稳稳当当，适合在一周被卷完之后认真吃一顿。', kind: 'good', journal: '· 校外：莞留香', onPick: () => collectFood('校外·莞留香') },
-        { label: '鹅好味', fx: { social: 3, sleep: 1 }, text: '烧腊切开时还带着光。你决定下次再来，顺便把同桌也带上。', kind: 'good', journal: '· 校外：鹅好味', onPick: () => collectFood('校外·鹅好味') },
-        { label: '品中品', fx: { social: 2, study: 1 }, text: '饭菜好吃，汤也可口。你用一顿饭把自己从考试周里捞了出来。', kind: 'good', journal: '· 校外：品中品', onPick: () => collectFood('校外·品中品') },
-        { label: '鲜汇', fx: { social: 3, sleep: 1 }, text: '滑蛋牛肉饭和不用讨论成绩的时间，组成了一个很像假期的晚上。', kind: 'good', journal: '· 校外：鲜汇', onPick: () => collectFood('校外·茶餐厅') },
-      ],
+      options: shuffle(MEISHI_OPTIONS).slice(0, 3),
     }),
   },
   {
@@ -2053,7 +2064,7 @@ const CAMPUS_EVENTS = [
           label: '把手机压在课本下刷一会儿',
           fx: { study: -2, sleep: -1 },
           chanceLabel: '不被抓约 30%',
-          riskHint: '被郑rj/林zy/巨 wf/练jc/曾y逮到的概率很大',
+          riskHint: '被逮到的概率很大',
           resolve: () => chance(0.3)
             ? { fx: { study: -1, social: 2 }, kind: 'event', title: '手机藏得不错', text: '你把屏幕亮度调到最低，靠课本挡住半边天。四十分钟后下课铃响，居然没人发现。', journal: '· 课堂玩手机：躲过巡堂' }
             : (() => { const who = phoneCatcher(); return { fx: { study: -4, social: -2, sleep: -1 }, kind: 'bad', title: `${who}收走了手机`, text: `后门无声地开了。${who}直接走到你桌边，把手伸进抽屉：「拿出来。」全班的目光都转了过来。手机被登记，班主任的通知比你到家还快。`, journal: `· 课堂玩手机被${who}抓` }; })(),
@@ -2197,7 +2208,7 @@ const ART_SHOWS = [
     id: 'symphony',
     yearIdx: 2,
     title: '🎻 高雅艺术进校园 · 交响乐专场',
-    body: '高三了，这是最后一次高雅艺术进校园。\n\n指挥棒落下的那一刻，整个体育馆像是被什么包住了。你听见低音提琴的声音从脚底升起来，穿过胸腔，到达眼眶。\n\n你旁边的同学在偷偷擦眼睛，假装是打哈欠。',
+    body: '高三了，这是最后一次高雅艺术进校园了。\n\n指挥棒落下的那一刻，整个体育馆像是被什么包住了。你听见低音提琴的声音从脚底升起来，穿过胸腔，到达眼眶。\n\n你旁边的同学在偷偷擦眼睛，假装是打哈欠。',
     fx: { sleep: -3, social: 2, study: 1 },
     journal: '· 高雅艺术进校园：交响乐',
     loveReact: {
@@ -2361,6 +2372,91 @@ const DAILY_LORE_CLUES = [
   '东莞中学的共产思想始于1923年。孟山公园（现东莞人民公园）南城墙上的风满楼是东莞中学进步学生学习革命理论传播革命思想的地方。——《大革命时期的红色莞中》',
 ];
 
+/* 周末池：每次从里面随机抽 3 个 */
+const WEEKEND_OPTIONS = [
+  { label: '在家埋头刷题备战月考', fx: { study: 2, sleep: -4 }, title: '📅 周末刷题', text: '两天里你几乎没出过房间，写完的卷子摞了一小叠。周日下午收书包的时候，你有点说不出的踏实。', journal: '· 周末：埋头刷题' },
+  { label: '约同学线下见面玩', fx: { social: 2, sleep: -2, study: -3 }, title: '📅 约同学出来', text: '你们在商场里逛了一下午，什么也没买，但笑了一路。回家的地铁上，你把作业忘得干干净净。', journal: '· 周末：约同学线下见面', onPick: () => { dailyGrantLeavePass(); } },
+  { label: '宅在家里玩手机电脑', fx: { social: 2, study: -3, sleep: -2 }, title: '📅 宅在家里', text: '你在学校没有玩手机，所以周末就在刷视频和打游戏中度过。', journal: '· 周末：宅在家里', onPick: () => { dailyGrantLeavePass(); } },
+  { label: '好好睡一觉休息，出门逛街散心', fx: { sleep: 3, study: -1 }, title: '📅 睡到自然醒', text: '你睡到中午才起，然后一个人出门走了很久。回来的时候天已经黑了，作业一个字没动，但整个人松了下来。', journal: '· 周末：睡觉逛街散心', onPick: () => { dailyGrantLeavePass(); } },
+  { label: '和父母出门吃顿饭', fx: { sleep: 2, social: 2, study: -2 }, title: '📅 陪家人吃饭', text: '你爸妈难得周末都在家，三个人去楼下那家小饭馆坐了坐。饭桌上聊的不是成绩，是最近哪条街新开了店。', journal: '· 周末：陪家人吃饭' },
+  { label: '一个人在家整理房间、发呆', fx: { sleep: 1, study: -1, social: -1 }, title: '📅 一个人在家', text: '你把书桌抽屉里的旧东西全翻出来看了一遍。作业推到大半天后才动了两页，但心里莫名安静。', journal: '· 周末：整理房间发呆' },
+  { label: '去图书馆占座，做一整套卷子', fx: { study: 4, sleep: -3, social: -1 }, title: '📅 图书馆占座', text: '你和几个同学约在图书馆，从早上坐到下午。一天下来做了两套理综，中间只出去吃了一碗面。', journal: '· 周末：图书馆做卷子' },
+];
+
+/* 运动池：每次从里面随机抽 3 个 */
+const SPORT_OPTIONS = [
+  { label: '去操场跑步', fx: { social: 3, sleep: 2 }, text: '你在操场跑了几圈，途中不时和同学打招呼，还遇到了老师，跑完以后，你感觉全身都轻松了。', kind: 'event' },
+  { label: '去体育馆打羽毛球', fx: { study: 2, social: 1 }, text: '你用最快的速度冲到体育馆三楼，抢到了最好的场，打了好几场酣畅淋漓的单打，最后精疲力竭，差点连回宿舍洗澡的力气都没有。', kind: 'good' },
+  { label: '去游泳馆游泳', fx: { social: 1, sleep: 3, study: 1 }, text: '你交替游了几圈自由泳和蛙泳，每次划手大腿，谁都会回应，你喜欢这种感觉。', kind: 'event' },
+];
+
+/* 课间池：每次从里面随机抽 4 个 */
+const BREAK_OPTIONS = [
+  { label: '趴桌小憩', fx: { sleep: 2, study: -1, social: -1 }, title: '📖 趴桌十分钟', text: '你把外套垫在胳膊下，闭眼就是十分钟。上课铃响时，同桌推了你一把。', journal: '· 课间：趴桌小憩' },
+  { label: '拿习题去办公室找老师答疑', fx: { study: 3, sleep: -3 }, title: '📖 办公室答疑', text: '办公室里排了三个人。你把攒了两天的题一口气问完，老师顺手在你本子上画了个圈：「这个思路对了。」', journal: '· 课间：办公室答疑' },
+  { label: '和好友去操场走走', fx: { social: 2, sleep: -1 }, title: '📖 操场走一圈', text: '你们绕操场走了一圈，在小卖部买了两瓶饮料。回来的时候出了些汗，上课铃刚好响。', journal: '· 课间：操场走一圈' },
+  { label: '跑去地下室打乒乓球', fx: { social: 1, sleep: -1 }, title: '📖 打乒乓球', text: '你在负1层找到球友，和他打了几局乒乓球，期间你一用力，把球打上了天花板的夹层里。', journal: '· 课间：跑去地下室打乒乓球' },
+  { label: '在教室和同桌聊天打闹', fx: { social: 2, sleep: -1, study: -1 }, title: '📖 聊了一整节下课', text: '你们从月考聊到暑假，笑得前排都回头。十分钟过得比一节课还快。', journal: '· 课间：聊天打闹' },
+  { label: '去小卖部买冰可乐', fx: { social: 1, study: -1 }, title: '📖 小卖部', text: '你在小卖部买了一瓶冰可乐，站在树下喝完。上课铃响的时候，剩下的半瓶还没喝完，只能拎回教室。', journal: '· 课间：小卖部冰可乐' },
+  { label: '去走廊上和隔壁班的朋友打招呼', fx: { social: 2, study: -1 }, title: '📖 隔壁班串门', text: '你走到隔壁班门口，朋友正好出来。两个人靠着栏杆交换了几条不重要的消息，上课铃就响了。', journal: '· 课间：隔壁班串门' },
+  { label: '去接杯热水，顺便看看走廊外的操场', fx: { sleep: 2, study: -1, social: -1 }, title: '📖 走廊接水', text: '你端着杯子走到饮水机前，热水器发出咕噜咕噜的声音。窗外操场上有人在上体育课。', journal: '· 课间：走廊接水' },
+  { label: '把下节课要用的书提前翻一遍', fx: { study: 2, sleep: -2 }, title: '📖 提前预习', text: '你把下节课的内容扫了一遍，标出了两个看不懂的地方。上课的时候正好讲到。', journal: '· 课间：提前预习' },
+  { label: '趴在窗台上，看楼下的篮球场', fx: { sleep: 2, social: -2 }, title: '📖 窗边发呆', text: '楼下有人正在打半场，球砸在水泥地上发出清脆的响声。你看了很久，直到上课铃响。', journal: '· 课间：窗边发呆' },
+];
+
+/* 午饭池：每次从里面随机抽 4 个 */
+const LUNCH_OPTIONS = [
+  { label: '食堂正常吃饭，回宿舍午休', fx: { sleep: 3, social: -1 }, title: '🍚 吃饭午休', text: '你排了十分钟的队，打了一份两荤一素，回宿舍躺下的时候还不到一点。醒来时天光正好。', journal: '· 午饭：吃饭午休' },
+  { label: '快速吃完饭留在教室刷题', fx: { study: 1, sleep: -2 }, title: '🍚 教室刷题', text: '你五分钟解决午饭，把错题本翻到第三页。教室里只有两三个人，安静得能听见笔尖划纸的声音。', journal: '· 午饭：教室刷题' },
+  { label: '和同学结伴出校门附近探店', fx: { social: 3, sleep: -1, study: -1 }, available: () => dailyCanLeave(), title: '🍚 出校探店', text: '你们在校门口那家小馆子坐下，点了三样分着吃。回到教室的时候，身上还带着一股菜香味。', journal: '· 午饭：出校探店', onPick: () => { dailyUseLeavePass(); } },
+  { label: '和同桌去食堂二楼吃饭', fx: { social: 3, sleep: -2, study: -1 }, title: '🍚 食堂二楼', text: '你们爬上食堂二楼。人挺多，你们排了十分钟的队，你感觉二楼的饭菜和一楼差不多。', journal: '· 午饭：去食堂二楼吃饭' },
+  { label: '点外卖带回宿舍吃', fx: { sleep: 2, social: -1, study: -1 }, title: '🍚 点外卖', text: '你把外卖带回宿舍，边吃边看手机。到点午休铃响，饭刚好吃完。', journal: '· 午饭：点外卖' },
+  { label: '和几个同学拼桌，点不同的菜分着吃', fx: { social: 3, sleep: -1 }, title: '🍚 拼桌分享', text: '四个人各点一样，盘子摆了一圈。谁都没吃饱，但谁都很开心。', journal: '· 午饭：拼桌分享' },
+  { label: '趴在课桌上眯一会儿', fx: { sleep: 3, study: -1, social: -1 }, title: '🍚 趴桌午休', text: '你把外套叠起来当枕头，胳膊有点麻，但睡得很沉。醒来时脸上印了一道衣服褶子。', journal: '· 午饭：趴桌午休' },
+  { label: '去图书馆，随便翻翻杂志', fx: { study: 1, sleep: 1, social: -1 }, title: '🍚 图书馆翻杂志', text: '图书馆中午人很少，你在期刊架前站了很久，翻完了一本讲旅行的杂志。', journal: '· 午饭：图书馆翻杂志' },
+];
+
+/* 放学池：每次从里面随机抽 4 个 */
+const AFTERNOON_OPTIONS = [
+  { label: '去操场打球 / 跑步', fx: { sleep: 2, study: -1 }, title: '🌇 操场', text: '你跑了三圈，又在球场投了十几个球。回教室的时候浑身是汗，但脑子空空的，很舒服。', journal: '· 放学：操场打球跑步' },
+  { label: '留在教室写作业，提前完成晚修任务', fx: { study: 1, sleep: -1, social: -1 }, title: '🌇 提前写作业', text: '你把数学和英语的作业都清了。晚修的时候别人还在赶，你已经翻到了下一章。', journal: '· 放学：提前完成晚修任务' },
+  { label: '去图书馆看书', fx: { social: -1, study: 1, sleep: -1 }, title: '🌇 图书馆', text: '图书馆人不少，你在书架间流连，看了几本有意思的书，一直到晚修铃快响的时候才离开。', journal: '· 放学：图书馆' },
+  { label: '逛校园，去操场和绿瓦楼附近散步', fx: {}, resolve: () => {
+      const k = pick(['sleep', 'social', 'study']);
+      const lab = { sleep: '睡眠', social: '社交', study: '学识' }[k];
+      const clue = pick(DAILY_LORE_CLUES);
+      S.flags.schoolLore = (S.flags.schoolLore || 0) + 1;
+      const n = S.flags.schoolLore;
+      return {
+        fx: { [k]: 3 },
+        kind: 'daily',
+        title: '🏛️ 校史秘闻线索',
+        text: `${clue}\n\n（${lab} +3）`,
+        journal: `· 校史秘闻线索 ${n}：${lab} +3`,
+        onPick: () => {
+          if (n >= DAILY_LORE_NEED && !dailyMilestones()['校史秘闻']) {
+            dailyMilestones()['校史秘闻'] = true;
+            journal(`· 成就「校史秘闻」：集齐 ${DAILY_LORE_NEED} 条校史线索`);
+          }
+        },
+      };
+    } },
+  { label: '在饭堂慢慢吃饭，和同学唠嗑', fx: { social: 1, study: -1 }, title: '🌇 饭堂唠嗑', text: '你们端着盘子找了个角落坐下，一顿饭吃了一个小时。聊的都是些没什么用的事，但很解压。', journal: '· 放学：饭堂唠嗑' },
+  { label: '去小卖部买点零食，坐在台阶上吃', fx: { sleep: 1, social: 1, study: -1 }, title: '🌇 台阶上吃零食', text: '你买了一包薯片和一盒牛奶，坐在教学楼外的台阶上慢慢吃。天还没黑，风很舒服。', journal: '· 放学：台阶上吃零食' },
+  { label: '去音乐教室，弹一会儿钢琴', fx: { social: 2, sleep: 1, study: -1 }, title: '🌇 音乐教室', text: '音乐教室没人，你掀开琴盖弹了一会儿。手生了不少，但琴声在空旷的教室里很好听。', journal: '· 放学：音乐教室弹琴' },
+  { label: '和同桌去操场看夕阳', fx: { social: 2, sleep: 1 }, title: '🌇 操场看夕阳', text: '你们坐在看台上，看着太阳一点一点沉到教学楼后面。谁也没提作业的事。', journal: '· 放学：操场看夕阳' },
+];
+
+/* 晚修后池：每次从里面随机抽 4 个 */
+const NIGHT_OPTIONS = [
+  { label: '快速洗漱，早点上床休息', fx: { sleep: 3, social: -1, study: -1 }, resolve: () => (chance(0.3)
+    ? { fx: {}, kind: 'daily', title: '🌙 睡不着', text: '你十点半就躺下了，可脑子一直在转——白天那道题、明天要交的作业、还有同桌随口说的一句话。翻来覆去到快十二点才迷迷糊糊睡过去。', journal: '· 晚修后：失眠（属性不变）' }
+    : { fx: { sleep: 4, social: -1, study: -1 }, kind: 'daily', title: '🌙 睡了个好觉', text: '你抢到了洗澡位，十点四十就上了床。宿舍里还在小声聊天，你已经睡着了。', journal: '· 晚修后：早睡' }) },
+  { label: '继续在台灯下刷题', fx: { study: 1, sleep: -4 }, title: '🌙 台灯下的两小时', text: '你把台灯调到最暗一档，趴在被子里做了两套选择题。室友翻身的时候，你看了眼时间：快一点了。', journal: '· 晚修后：台灯刷题' },
+  { label: '和室友聊会儿天再睡', fx: { social: 2, sleep: -1, study: -2 }, title: '🌙 宿舍夜话', text: '熄灯了，但宿舍里没人睡。你们压低声音从游戏聊到喜欢的大学，一直到楼下传来巡夜的脚步声。', journal: '· 晚修后：宿舍夜话' },
+  { label: '靠在床头听一会儿歌', fx: { sleep: 2, social: -1, study: -1 }, title: '🌙 听歌', text: '你把耳机塞进耳朵，单曲循环了一首歌。歌词没记住，但旋律让这一天的疲惫慢慢落下去。', journal: '· 晚修后：听歌' },
+];
+
 const DAILY_SLOTS = [
   {
     key: 'morning',
@@ -2466,21 +2562,21 @@ const DAILY_SLOTS = [
         label: '和同学结伴出校门附近探店', fx: { social: 3, sleep: -1, study: -1 },
         available: () => dailyCanLeave(),
         title: '🍚 出校探店',
-        text: '你们在校门口那家小馆子坐下，点了三样分着吃。回到教室的时候，身上还带着一股油烟味。',
+        text: '你们在校门口那家小馆子坐下，点了三样分着吃。回到教室的时候，身上还带着一股菜香味。',
         journal: '· 午饭：出校探店',
         onPick: () => { dailyUseLeavePass(); },
       },
       {
-        label: '和同桌去天台吃饭', fx: { social: 3, sleep: -2, study: -1 },
-        title: '🍚 天台',
-        text: '你们拎着饭盒爬上天台。风挺大，饭粒被吹得四处跑。好在没人管，也没人催。',
-        journal: '· 午饭：天台吃饭',
+        label: '和同桌去食堂二楼吃饭', fx: { social: 3, sleep: -2, study: -1 },
+        title: '🍚 食堂二楼',
+        text: '你们爬上食堂二楼。人挺多，你们排了十分钟的队，你感觉二楼的饭菜和一楼差不多。',
+        journal: '· 午饭：去食堂二楼吃饭',
       },
       {
-        label: '排队买好饭带回宿舍吃', fx: { sleep: 2, social: -1 },
-        title: '🍚 宿舍吃饭',
-        text: '你把饭带回宿舍，边吃边看手机。到点午休铃响，饭刚好吃完。',
-        journal: '· 午饭：宿舍吃饭',
+        label: '点外卖带回宿舍吃', fx: { sleep: 2, social: -1 ,study: -1},
+        title: '🍚 点外卖',
+        text: '你把外卖带回宿舍，边吃边看手机。到点午休铃响，饭刚好吃完。',
+        journal: '· 午饭：点外卖',
       },
     ],
   },
@@ -2686,6 +2782,18 @@ function dailyUseLeavePass() {
   }
 }
 
+// 各时段的出现权重。morning/evening/night/weekend 是常规时段；
+// break/lunch/afternoon 权重压到 1/3，大约每 12 轮才出现一次。
+const DAILY_SLOT_WEIGHTS = {
+  morning: 3,
+  break: 1,
+  lunch: 1,
+  afternoon: 1,
+  evening: 3,
+  night: 3,
+  weekend: 3,
+};
+
 function dailySlotIndex() {
   if (!S) return 0;
   if (typeof S.dailyIdx !== 'number' || !isFinite(S.dailyIdx) || S.dailyIdx < 0) S.dailyIdx = 0;
@@ -2693,18 +2801,41 @@ function dailySlotIndex() {
   if (typeof S.flags.phoneChoiceSem !== 'number') S.flags.phoneChoiceSem = -1;
   if (typeof S.flags.promotionChecked !== 'boolean') S.flags.promotionChecked = false;
   if (typeof S.flags.pendingPromotion !== 'string') S.flags.pendingPromotion = null;
+  if (!S.flags.loveMilestones || typeof S.flags.loveMilestones !== 'object') S.flags.loveMilestones = {};
   return S.dailyIdx % DAILY_SLOTS.length;
 }
+
 function advanceDailySlot() {
   if (!S) return;
-  S.dailyIdx = (dailySlotIndex() + 1) % DAILY_SLOTS.length;
+  const total = DAILY_SLOTS.reduce((sum, slot) => sum + (DAILY_SLOT_WEIGHTS[slot.key] || 1), 0);
+  let picked = S.dailyIdx;
+  // 最多重抽 8 次，避免连续两次撞到同一个时段
+  for (let tries = 0; tries < 8; tries++) {
+    let r = Math.random() * total;
+    for (let i = 0; i < DAILY_SLOTS.length; i++) {
+      r -= (DAILY_SLOT_WEIGHTS[DAILY_SLOTS[i].key] || 1);
+      if (r <= 0) { picked = i; break; }
+    }
+    if (picked !== S.dailyIdx) break;
+  }
+  S.dailyIdx = picked;
 }
 
 function buildDailyEvent() {
   if (!S) return null;
   const slot = DAILY_SLOTS[dailySlotIndex()];
   advanceDailySlot();
-  const options = slot.options
+
+  // 每个时段都从对应的池子里随机抽 4 个；morning / evening 用固定的 4 个选项
+  let rawOptions;
+  if (slot.key === 'break') rawOptions = shuffle(BREAK_OPTIONS).slice(0, 4);
+  else if (slot.key === 'lunch') rawOptions = shuffle(LUNCH_OPTIONS).slice(0, 4);
+  else if (slot.key === 'afternoon') rawOptions = shuffle(AFTERNOON_OPTIONS).slice(0, 4);
+  else if (slot.key === 'night') rawOptions = shuffle(NIGHT_OPTIONS).slice(0, 4);
+  else if (slot.key === 'weekend') rawOptions = shuffle(WEEKEND_OPTIONS).slice(0, 4);
+  else rawOptions = slot.options.slice(0, 4); // morning / evening
+
+  const options = rawOptions
     .filter((o) => !o.available || o.available())
     .map((o) => ({ ...o, fxLabels: DAILY_FX_LABELS, kind: 'daily', title: o.title || `${slot.title} · 回应`, text: o.text || '' }));
   if (!options.length) return null;
@@ -3061,47 +3192,86 @@ function addAff(delta) {
   renderHud();
 }
 
+/* ================================================================
+   恋爱里程碑 · 对话链构造器
+   把一串步骤串成「选项 → 回应 → 选项 → 回应 → 选项」的对话链。
+   每个选项的 next 属性指向下一步；最后一步的选项负责标记已触发。
+   ================================================================ */
+function makeLoveChain(steps) {
+  const buildStep = (idx) => {
+    if (idx >= steps.length) return null;
+    const step = steps[idx];
+    return {
+      t: 'choice',
+      intro: { kind: 'love', title: step.title, body: step.body },
+      options: step.options.map((opt) => ({
+        label: opt.label,
+        fx: opt.fx || {},
+        kind: 'love',
+        title: opt.title || opt.label,
+        text: opt.text || '',
+        journal: opt.journal,
+        onPick: opt.onPick,
+        next: idx + 1 < steps.length ? () => buildStep(idx + 1) : null,
+      })),
+    };
+  };
+  return buildStep(0);
+}
 /* ---------------- 遇见 ---------------- */
 function buildLoveMeetEvent() {
   const L = S && S.love;
   if (!L || L.met) return null;
-  if (CFG.loveMode === 'none') return null;   // 无意：直接不遇见
+  if (CFG.loveMode === 'none') return null;
   if (S.round < 2) return null;
+
+  // 随机抽一个角色，不再让玩家"选妃"
   const chars = loveChars();
-  const body = loveIsBoy()
-    ? '开学有一阵了。走廊上总有人从你旁边挤过去，没人多看你一眼。\n\n这一天，有个人在你面前停住了，站了大概两秒。'
-    : '开学有一阵了，你还没认真看过班里和走廊上的每一张脸。\n\n这一天，有个人从人群里走出来，在你面前停了一下。';
+  const keys = Object.keys(chars);
+  const k = keys[rnd(0, keys.length - 1)];
+  const c = chars[k];
+
   return {
     t: 'choice',
     intro: {
       kind: 'love',
       title: '🚪 遇见',
-      body,
+      body: `开学有一阵了。走廊上的人脸你还是认不全，大多数时候低头走路，谁也不看。\n\n这一天——\n\n${c.meetPlace}。\n\n${c.meetLine}\n\n你愣了一下。还没想好要不要开口，TA 已经从你旁边走了过去。`,
     },
-    options: Object.keys(chars).map((k) => {
-      const c = chars[k];
-      return {
-        label: `${c.name} · ${c.persona}`,
-        riskHint: c.club,
-        fx: { aff: 12 },
+    options: [
+      {
+        label: '回头，多看 TA 一眼',
+        fx: { aff: 12, social: 1 },
         kind: 'love',
-        title: `👀 遇见了 ${c.name}`,
-        text: `${c.meetPlace}。\n\n${c.meetLine}\n\n（${c.persona} · ${c.club}）`,
+        title: `👀 记住了 ${c.name}`,
+        text: `你回头的时候，TA 已经走到走廊的拐角。你只看清一个侧脸——但那个侧脸你会记得很久。\n\n（后来你才知道，TA 叫${c.name}，${c.club}。）`,
         journal: `· 遇见 ${c.name}（${c.persona}）`,
         onPick: () => {
-          L.met = true;
-          L.char = k;
-          L.name = c.name;
+          L.met = true; L.char = k; L.name = c.name;
           L.gender = CFG.gender === '男' ? '女' : '男';
           L.from = '开学遇见';
-          L.aff = 12;
-          L.stage = stageForAff(12);
-          L.peakAff = 12;
+          L.aff = 12; L.stage = stageForAff(12); L.peakAff = 12;
           L.flags.bday = pick([3, 4, 5, 6, 9, 10, 11]);
           renderHud();
         },
-      };
-    }),
+      },
+      {
+        label: '低头走开，什么都没想',
+        fx: { aff: 6 },
+        kind: 'love',
+        title: `👀 擦肩而过`,
+        text: `你低下头，把路让开。TA 从你旁边过去，脚步声在走廊里响了两下就远了。\n\n（你以为这件事就这样过去了。但它没有。）`,
+        journal: `· 擦肩而过：${c.name}（${c.persona}）`,
+        onPick: () => {
+          L.met = true; L.char = k; L.name = c.name;
+          L.gender = CFG.gender === '男' ? '女' : '男';
+          L.from = '擦肩而过';
+          L.aff = 6; L.stage = stageForAff(6); L.peakAff = 6;
+          L.flags.bday = pick([3, 4, 5, 6, 9, 10, 11]);
+          renderHud();
+        },
+      },
+    ],
   };
 }
 
@@ -3395,14 +3565,14 @@ function loveEvent06() {
   };
 }
 
-// 07 · 天台（④）
+// 07 · 走廊（④）
 function loveEvent07() {
   const ta = loveTa();
   return {
     t: 'choice',
     intro: {
       kind: 'love',
-      title: '🌬️ 外面的走廊',
+      title: '🌬️ 教室外面的走廊',
       body: `走廊的风比楼下大得多。${ta}靠在栏杆上，校服外套被吹得鼓起来。\n\n${ta}：「你怎么也来了？」`,
     },
     options: [
@@ -3674,7 +3844,7 @@ function boyEvent06() {
   };
 }
 
-// 07 · 天台上的烟（④）
+// 07 · 天台上的风（④）
 function boyEvent07() {
   const ta = loveTa();
   return {
@@ -3682,17 +3852,17 @@ function boyEvent07() {
     intro: {
       kind: 'love',
       title: '🌬️ 天台上的风',
-      body: `天台风大。\n\n${ta}靠在栏杆上，把手插在兜里，看着远处。\n\n${ta}：「你怎么上来的。」`,
+      body: `天台风大。\n\n${ta}靠在栏杆上，把手插在兜里，看着远处。\n\n${ta}：「你怎么上来了。」`,
     },
     options: [
       { label: '「找你。」', fx: { aff: 9, social: 2, sleep: -1 }, kind: 'love', title: '🌬️ 找你',
         text: lp({ A: '「……找我干嘛。」TA 低着头，脚尖踢栏杆。', B: '「找我？」TA 转过身来，「那你找到啦。」语气很轻松，但耳朵先红了。', C: '「……找我。」TA 重复了一遍，像是要确认，「为什么。」', D: '「找我干嘛，我有什么好找的。」TA 低着头，脚尖一直在踢栏杆。' }),
         journal: '· 天台：找你' },
-      { label: '「借的钥匙。」', fx: { aff: 6, study: -1 }, kind: 'love', title: '🌬️ 借的钥匙',
-        text: lp({ A: '「你还挺厉害。」', B: '「可以啊，下次帮我也借一把。」', C: '「……管理员也给你。」TA 看了你一眼，有点意外。', D: '「你还能借到钥匙？」TA 明显不太信。' }),
+      { label: '「看风景。」', fx: { aff: 6, study: -1 }, kind: 'love', title: '🌬️ 看风景',
+        text: lp({ A: '「你还挺有空的。」', B: '「可以啊，下次我们一起看。」', C: '「……你也喜欢来这看风景。」TA 看了你一眼，有点意外。', D: '「你特地来这看风景？」TA 明显不太信。' }),
         journal: '· 天台：借的钥匙' },
       { label: '「你一个人在这儿干什么。」', fx: { aff: 7, sleep: -1 }, kind: 'love', title: '🌬️ 问了一句',
-        text: lp({ A: '「……没什么。就是不想回教室。」TA 停了停，「你怎么来了。」', B: '「躲清静啊。」TA 笑了笑，「你怎么找到这儿的。」', C: '「……在想一道题。」TA 停了一下，「你上来，我就想不出来了。」', D: '「关你什么事。」TA 说完自己又补了一句，「……就是不想回教室。」' }),
+        text: lp({ A: '「……没什么。就是不想回教室。」TA 停了停，「这风景不错。」', B: '「躲清静啊。」TA 笑了笑，「你怎么找到这儿的。」', C: '「……在想一道题。」TA 停了一下，「你上来，我就想不出来了。」', D: '「关你什么事。」TA 说完自己又补了一句，「……就是不想回教室。」' }),
         journal: '· 天台：问了一句' },
     ],
     onResolve: () => { S.love.seen.e07 = true; },
@@ -3707,13 +3877,13 @@ function boyEvent08() {
     intro: {
       kind: 'love',
       title: '🏆 比赛之后',
-      body: `比赛输了。哨响之后${ta}一个人在场上站了很久，等所有人散了才走上看台，坐在最上面一排。\n\n${ta}：「你怎么还不走。」`,
+      body: `比赛输了。哨响之后${ta}一个人在场上站了很久，等所有人散了才走到你身边。\n\n${ta}：「你怎么还不走。」`,
     },
     options: [
-      { label: '「陪你坐会儿。」', fx: { aff: 12, social: 3, sleep: -1 }, kind: 'love', title: '🏆 看台最上面一排',
-        text: lp({ A: 'TA「嗯」了一声，把外套脱下来搭在旁边，动作是让你坐那儿。', B: '「坐吧。」TA 拍了拍旁边的位置，「这上面视野好，能看到整个场子。」', C: 'TA 没说话，把书包从旁边挪开，留出半个位置。', D: '「随便你。」TA 往旁边挪了挪，位置留得比需要的大。' }),
-        journal: '· 比赛之后：陪着',
-        onPick: () => { S.flags.loveMilestones['看台最上面一排'] = true; } },
+      { label: '「陪你一会儿。」', fx: { aff: 12, social: 3, sleep: -1 }, kind: 'love', title: '🏆 陪你',
+        text: lp({ A: 'TA「嗯」了一声，把外套脱下来搭在旁边，动作是让你坐那儿。', B: '「坐吧。」TA 拍了拍旁边的位置，「这视野好，能看到整个场子。」', C: 'TA 没说话，把书包从旁边挪开，留出半个位置。', D: '「随便你。」TA 往旁边挪了挪，位置留得比需要的大。' }),
+        journal: '· 比赛之后：陪你',
+        onPick: () => { S.flags.loveMilestones['陪着你'] = true; } },
       { label: '「输了就输了，下次赢回来。」', fx: { aff: 6, social: 1 }, kind: 'love', title: '🏆 安慰',
         text: `「……嗯。」${ta}笑了一下，但笑得不太对。`,
         journal: '· 比赛之后：安慰' },
@@ -3858,6 +4028,375 @@ function buildLoveStoryEvent() {
     if (L.aff < ev.min) return null;   // 没到门槛就停在这里，不跳级
     return ev.build();
   }
+  return null;
+}
+/* ================================================================
+   恋爱里程碑 · 好感 30 / 50 / 80 / 100
+   每段是 3 层对话链，用 lp() 按性格取台词。
+   ================================================================ */
+
+function loveMilestone30() {
+  const ta = loveTa();
+  return makeLoveChain([
+    {
+      title: '🚶 一起走的放学路',
+      body: `傍晚，校门口的树把影子拉得很长。你走出教学楼，看到${ta}背着书包站在车棚旁边，像是在等什么人。\n\n${lp({
+        A: 'TA 也看到了你。两人对视一秒，TA 先移开了目光。',
+        B: '「诶——正好！」TA 挥了挥手，朝你这边走过来。',
+        C: 'TA 看你一眼，又低头翻书包，动作慢了下来。',
+        D: '「你走得真慢。」TA 嘟囔了一句，但没走。',
+      })}`,
+      options: [
+        { label: '「你在等人吗？」', fx: { aff: 4, social: 1 },
+          text: lp({
+            A: '「……没有。」TA 顿了一下，「就是站一会儿。」',
+            B: '「等你啊！不对，我是说顺路。」TA 自己先笑了。',
+            C: '「……没等谁。」TA 把书包带子紧了紧。',
+            D: '「等你个头，我等公交。」TA 耳朵有点红。',
+          }),
+          journal: '· 好感30：问了 TA 一句' },
+        { label: '走过去，什么也不说', fx: { aff: 3, sleep: 1 },
+          text: lp({
+            A: 'TA 没先开口。两个人一前一后走了两步，最后是 TA 先说话的。',
+            B: '「诶，你怎么不说话？」TA 主动凑过来。',
+            C: 'TA 也没有说话。两个人沉默地走着，风把树叶吹得沙沙响。',
+            D: '「哑了？」TA 踢了一脚路边的小石子。',
+          }),
+          journal: '· 好感30：沉默地并肩' },
+      ],
+    },
+    {
+      title: '🚶 分岔路口',
+      body: `前面的路口，一边是回家的方向，一边是小吃街。\n\n${lp({
+        A: 'TA 在路口停住，等你先决定。',
+        B: '「今天不想那么早回去。你呢？」TA 转头看你。',
+        C: 'TA 看着远处，什么也不说。',
+        D: '「你走哪边？」TA 问得很随意，但一直在看你。',
+      })}`,
+      options: [
+        { label: '「一起去小吃街吧。」', fx: { aff: 5, social: 2, sleep: -1 },
+          text: lp({
+            A: '「……嗯。」TA 转身的时候，书包带子从肩上滑下来，TA 没管。',
+            B: '「好啊好啊！我早就想去了！」',
+            C: '「……好。」TA 跟上你的脚步，走得很近。',
+            D: '「谁要跟你去。」但 TA 已经走在你旁边了。',
+          }),
+          journal: '· 好感30：一起去了小吃街' },
+        { label: '「今天先回家吧。」', fx: { aff: 2, sleep: 2 },
+          text: lp({
+            A: '「……嗯。」',
+            B: '「啊——好吧。」TA 的语气有点失落。',
+            C: '「……好，路上小心。」',
+            D: '「就知道你要跑。」',
+          }) },
+      ],
+    },
+    {
+      title: '🚶 分别',
+      body: `到了真的要分开的地方。\n\n${lp({
+        A: 'TA 站在原地看着你，好像在等你说什么。',
+        B: '「那我走这边啦！」但 TA 站着没动。',
+        C: 'TA 点了一下头，转身要走。',
+        D: '「喂，走了。」但 TA 的脚步没动。',
+      })}`,
+      options: [
+        { label: '「明天见。」', fx: { aff: 3, social: 1 },
+          text: lp({
+            A: '「……明天见。」TA 说完才转身。',
+            B: '「明天见！」TA 挥手，声音比平时大一点。',
+            C: '「……明天见。」TA 走的时候回头看了一眼。',
+            D: '「嗯。」TA 转身走得很快，没回头。',
+          }),
+          journal: '· 好感30：第一次说「明天见」',
+          onPick: () => { S.flags.loveMilestones['ms30'] = true; } },
+        { label: '「明天早读，我帮你占位置。」', fx: { aff: 5, social: 2 },
+          text: lp({
+            A: '「……不用。」但 TA 没拒绝。',
+            B: '「真的？那我要靠窗那个！」',
+            C: '「……随便哪个位置都可以。」',
+            D: '「谁要你占。」TA 的脚步慢了一点。',
+          }),
+          journal: '· 好感30：答应占位置',
+          onPick: () => { S.flags.loveMilestones['ms30'] = true; } },
+      ],
+    },
+  ]);
+}
+
+function loveMilestone50() {
+  const ta = loveTa();
+  return makeLoveChain([
+    {
+      title: '🌧️ TA 淋了雨',
+      body: `下午放学突然下起大雨。你在教学楼门口等到雨小一点才出来，走到校门口，看见${ta}站在公交站牌下面，校服外套的肩膀全湿了。\n\n${lp({
+        A: 'TA 也看到了你，下意识往后退了半步，像是不想让你看见。',
+        B: '「啊——倒霉死了！」TA 抱怨了一句，声音很大。',
+        C: 'TA 站在那儿没动，头发贴在脸上。',
+        D: '「看什么看。」TA 别过头去。',
+      })}`,
+      options: [
+        { label: '「你伞呢？」', fx: { aff: 4, social: 1 },
+          text: lp({
+            A: '「……忘了带。」',
+            B: '「出门的时候还是晴的！」',
+            C: '「……早上忘了。」',
+            D: '「关你什么事。」',
+          }) },
+        { label: '把自己伞递过去', fx: { aff: 6, social: 2, sleep: -1 },
+          text: lp({
+            A: '「……那你呢。」TA 没接。',
+            B: '「你怎么办？」TA 也没接。',
+            C: '「……不用。」但 TA 看了你一眼。',
+            D: '「我不要。」TA 顿了顿，「……你撑吧。」',
+          }),
+          journal: '· 好感50：把伞递给 TA' },
+      ],
+    },
+    {
+      title: '🌧️ 一把伞的距离',
+      body: `雨还没有停。公交站的人越来越多，TA 往你这边挤了一点。\n\n${lp({
+        A: 'TA 和你保持着一拳的距离，但你能听到 TA 的呼吸。',
+        B: '「这雨什么时候停啊。」TA 抬头看了看天。',
+        C: 'TA 没有说话，只是把湿掉的头发别到耳后。',
+        D: '「你站那么远干嘛。」TA 说，但自己也没靠近。',
+      })}`,
+      options: [
+        { label: '「一起走吧，我先送你回去。」', fx: { aff: 8, social: 2, sleep: -1 },
+          text: lp({
+            A: '「……不用。」但 TA 在你开口前，已经挪到了伞下。',
+            B: '「那太好了！」TA 直接走进伞下，肩膀贴上了你的胳膊。',
+            C: '「……好。」TA 的声音很轻。',
+            D: '「凭什么你送我。」但 TA 已经站在伞下了。',
+          }),
+          journal: '· 好感50：送 TA 回去' },
+        { label: '「等雨停吧，不急。」', fx: { aff: 3, sleep: 1 },
+          text: lp({
+            A: '「……嗯。」',
+            B: '「也行。」TA 重新靠回站牌。',
+            C: '「……好。」',
+            D: '「随便你。」',
+          }) },
+      ],
+    },
+    {
+      title: '🌧️ 到你家楼下',
+      body: `雨慢慢小了。到了 TA 家楼下的时候，天已经暗下来。\n\n${lp({
+        A: 'TA 站在楼道口，回头看你，好像想说什么。',
+        B: '「到了！谢谢你啊！」但 TA 还没进去。',
+        C: 'TA 抬头看了一眼自家窗户，又看了看你。',
+        D: '「行了，你回去吧。」但 TA 站着没走。',
+      })}`,
+      options: [
+        { label: '「那……明天见。」', fx: { aff: 5, social: 1 },
+          text: lp({
+            A: '「……明天见。」TA 说得很轻。',
+            B: '「明天见！」TA 挥挥手，转身进去了。',
+            C: '「……明天见。」TA 上楼的时候，在楼梯拐角又看了一眼。',
+            D: '「嗯。」TA 转身就走，门关得有点快。',
+          }),
+          journal: '· 好感50：第一次送 TA 回家',
+          onPick: () => { S.flags.loveMilestones['ms50'] = true; } },
+        { label: '「外套给你，明天还我。」', fx: { aff: 8, social: 2 },
+          text: lp({
+            A: '「……不用。」但 TA 已经把外套接过去了，抱在怀里。',
+            B: '「啊？那你怎么办？」但 TA 接得很自然。',
+            C: '「……谢谢。」TA 把外套披在肩上，站在原地看着你走了。',
+            D: '「谁要你外套。」TA 把它塞进书包里。',
+          }),
+          journal: '· 好感50：留下外套',
+          onPick: () => { S.flags.loveMilestones['ms50'] = true; } },
+      ],
+    },
+  ]);
+}
+
+function loveMilestone80() {
+  const ta = loveTa();
+  return makeLoveChain([
+    {
+      title: '🌙 教室只剩你们两个',
+      body: `晚修结束，教室里的人陆续走光了。等最后一盏灯熄掉，你才发现${ta}还坐在位置上，假装在收书包，其实一个字都没动。\n\n${lp({
+        A: 'TA 抬起头，和你视线撞上，很快又低下去。',
+        B: '「诶，你怎么还不走？」TA 问得很随意，但书包还开着。',
+        C: 'TA 看着你，没有开口。',
+        D: '「你站那干嘛，走啊。」但 TA 的手还在桌肚里。',
+      })}`,
+      options: [
+        { label: '「我在等你。」', fx: { aff: 10, social: 3, sleep: -1 },
+          text: lp({
+            A: '「……等我做什么。」TA 的声音很轻，手上动作停了。',
+            B: '「等我？」TA 愣了一下，「那你早说啊。」',
+            C: '「……嗯。」TA 把书包拉好，站起来。',
+            D: '「谁要你等。」但 TA 的书收得比平时快。',
+          }),
+          journal: '· 好感80：承认在等 TA' },
+        { label: '「没什么，收拾得慢。」', fx: { aff: 3 },
+          text: lp({
+            A: '「……哦。」',
+            B: '「哦——那我先走了啊。」但 TA 没动。',
+            C: 'TA 点了点头，把书塞进书包。',
+            D: '「磨蹭什么。」但 TA 也在磨蹭。',
+          }) },
+      ],
+    },
+    {
+      title: '🌙 走廊上',
+      body: `两个人一前一后走出教学楼。走廊里只剩应急灯，把两个人的影子照在地上，一长一短。\n\n${lp({
+        A: 'TA 走在前面，脚步很慢，像是在等你跟上来。',
+        B: '「你说，我们这样算不算……」TA 没说完。',
+        C: 'TA 忽然停下来，抬头看天。',
+        D: '「嗯……」TA 欲言又止。',
+      })}`,
+      options: [
+        { label: '「算什么？」', fx: { aff: 6, social: 1 },
+          text: lp({
+            A: '「……没什么。」TA 转过身去，走在前面。',
+            B: '「算、算认识啊！」TA 说完就后悔了。',
+            C: '「……算朋友吧。」TA 说得不确定。',
+            D: '「算你个头。」TA 自己先走了。',
+          }),
+          journal: '· 好感80：把话追问下去' },
+        { label: '「你继续说。」', fx: { aff: 7, sleep: -1 },
+          text: lp({
+            A: 'TA 站了两秒，最后什么都没说，只是把脚步放得更慢了。',
+            B: '「啊……算了算了，当我没说。」',
+            C: '「……下次吧。」TA 说完自己笑了一下。',
+            D: '「不说。」TA 走得很快，把你甩在后面。',
+          }),
+          journal: '· 好感80：让 TA 说完' },
+      ],
+    },
+    {
+      title: '🌙 天桥上',
+      body: `走到天桥上，远处的高楼亮着零星的灯。TA 停下来，靠在栏杆上。\n\n${lp({
+        A: 'TA 看着远处，什么也不说。风把 TA 的头发吹到眼睛前面。',
+        B: '「我以后想去一个很远的城市。」TA 忽然说。',
+        C: '「你说，长大以后，会不会忘记现在。」TA 说得像自言自语。',
+        D: '「喂。」TA 没回头，「你会不会觉得我很烦。」',
+      })}`,
+      options: [
+        { label: '「不会忘。」', fx: { aff: 8, social: 2 },
+          text: lp({
+            A: '「……你怎么知道。」但 TA 的语气里有一种放松下来的东西。',
+            B: '「诶，我也是！」TA 回过头来，眼睛亮了一下。',
+            C: '「……嗯。」TA 看着远处，嘴角好像动了一下。',
+            D: '「你烦。」TA 转过来瞪你一眼，「……那你还老跟着我。」',
+          }),
+          journal: '· 好感80：答应了「不会忘」',
+          onPick: () => { S.flags.loveMilestones['ms80'] = true; } },
+        { label: '「不知道。但今天不会忘。」', fx: { aff: 9, social: 2 },
+          text: lp({
+            A: 'TA 看了你很久，最后只说了三个字：「……真会说。」',
+            B: '「你今天说话好恶心。」但 TA 笑了。',
+            C: '「……好。」TA 把这句话记进去了。',
+            D: '「什么啊。」TA 转过身去，「肉麻。」',
+          }),
+          journal: '· 好感80：「今天不会忘」',
+          onPick: () => { S.flags.loveMilestones['ms80'] = true; } },
+      ],
+    },
+  ]);
+}
+
+function loveMilestone100() {
+  const ta = loveTa();
+  return makeLoveChain([
+    {
+      title: '🎓 毕业典礼前夜',
+      body: `毕业典礼的前一晚，学校里到处都是搬东西的人。你和${ta}留到最后，两个人坐在操场看台上，什么也不做。\n\n${lp({
+        A: 'TA 把头靠在膝盖上，和你隔着一个座位的距离。',
+        B: '「明天就毕业了诶。」TA 的语气和平时不太一样。',
+        C: 'TA 看着操场，没有说话。',
+        D: '「真快。」TA 只说了两个字。',
+      })}`,
+      options: [
+        { label: '伸手，握住 TA 的手', fx: { aff: 10, social: 3 },
+          text: lp({
+            A: 'TA 的手抖了一下，但没有抽开。',
+            B: 'TA 反握回来，力气比你想的大。',
+            C: 'TA 没有动。你能感觉到 TA 的掌心有一层薄薄的汗。',
+            D: '「干嘛。」但 TA 的五指扣了上来。',
+          }),
+          journal: '· 好感100：看台上牵了手' },
+        { label: '往 TA 那边挪了一个座位', fx: { aff: 7, social: 2 },
+          text: lp({
+            A: 'TA 没有让开。你的肩膀贴上了 TA 的肩膀。',
+            B: '「哦。」TA 往旁边让了一点，又挪回来一点。',
+            C: 'TA 侧过脸，看着你。',
+            D: '「你挤什么。」但 TA 没动。',
+          }),
+          journal: '· 好感100：挪近了一个座位' },
+      ],
+    },
+    {
+      title: '🎓 说过的话',
+      body: `操场的灯熄了一半，远处宿舍楼的窗还亮着几盏。\n\n${lp({
+        A: '「……以后，我们还会像现在这样吗。」TA 问得很轻。',
+        B: '「你说，去了大学以后，我们还会不会见面啊？」',
+        C: '「……我在想一件事。」',
+        D: '「喂。」TA 顿了一下，「你以后……会不会把我忘了。」',
+      })}`,
+      options: [
+        { label: '「不会。不管去哪里。」', fx: { aff: 10, social: 2 },
+          text: lp({
+            A: '「……你保证。」',
+            B: '「你说的啊！反悔的是小狗！」',
+            C: '「……好，我记住了。」',
+            D: '「谁要你保证。」但 TA 一直看着你。',
+          }),
+          journal: '· 好感100：许下承诺' },
+        { label: '「不知道。但我现在，只想坐在这里。」', fx: { aff: 9, social: 2 },
+          text: lp({
+            A: '「……嗯。」TA 把头靠回膝盖上。',
+            B: '「……你这人怎么这样。」但 TA 笑了。',
+            C: '「……好。」',
+            D: '「行吧。」TA 往你这边挪了挪。',
+          }),
+          journal: '· 好感100：坐在这里' },
+      ],
+    },
+    {
+      title: '🎓 毕业那天的早上',
+      body: `第二天早上，你穿好校服，走出宿舍。TA 已经在等你了。\n\n${lp({
+        A: 'TA 手里拎着两杯豆浆，看到你就递了一杯过来。',
+        B: '「早！毕业快乐！」TA 的声音比平时大。',
+        C: 'TA 站在晨光里，校服被风吹得鼓起来。',
+        D: '「磨蹭。」但 TA 把手里那杯豆浆举了半天。',
+      })}`,
+      options: [
+        { label: '「毕业快乐。」接过来', fx: { aff: 6, social: 2 },
+          text: lp({
+            A: '「……嗯。」',
+            B: '「毕业快乐！」',
+            C: '「……毕业快乐。」',
+            D: '「嗯，毕业快乐。」',
+          }),
+          journal: '· 好感100：毕业快乐',
+          onPick: () => { S.flags.loveMilestones['ms100'] = true; } },
+        { label: '「走吧，一起去礼堂。」', fx: { aff: 6, social: 1 },
+          text: lp({
+            A: '「……好。」',
+            B: '「走！」',
+            C: '「……好。」',
+            D: '「走着瞧。」',
+          }),
+          journal: '· 好感100：一起去礼堂',
+          onPick: () => { S.flags.loveMilestones['ms100'] = true; } },
+      ],
+    },
+  ]);
+}
+
+/* 里程碑触发检查：按好感从低到高顺序触发，每档只触发一次 */
+function buildLoveMilestoneEvent() {
+  const L = S && S.love;
+  if (!L || !L.met) return null;
+  if (!S.flags.loveMilestones || typeof S.flags.loveMilestones !== 'object') S.flags.loveMilestones = {};
+  const ms = S.flags.loveMilestones;
+  if (L.aff >= 30 && !ms['ms30']) return loveMilestone30();
+  if (L.aff >= 50 && !ms['ms50']) return loveMilestone50();
+  if (L.aff >= 80 && !ms['ms80']) return loveMilestone80();
+  if (L.confessed && L.aff >= 100 && !ms['ms100']) return loveMilestone100();
   return null;
 }
 
@@ -4005,23 +4544,24 @@ function buildPhoneMsgEvent() {
 
 /* ---------------- 约会 ---------------- */
 const DATE_SPOTS = [
-  { name: '奶茶店', s3: '「你喝什么？我随便。」', s5: '「我们点一杯就够了，喝不完。」', fx: { aff: 6, social: 4, study: -2, sleep: -1 } },
-  { name: '书店', s3: '「你先逛，我在那边。」', s5: '「这本……你看过吗？我想买给你。」', fx: { aff: 6, study: 2, sleep: -1 } },
-  { name: '电影院', s3: '「你选吧，我都行。」', s5: '「刚才那段，我其实没怎么看。」', fx: { aff: 7, social: 3, sleep: -2 } },
+  { name: '1點點奶茶店', s3: '「你喝什么？我随便。」', s5: '「我们点一杯就够了，喝不完。」', fx: { aff: 6, social: 4, study: -2, sleep: -1 } },
+  { name: '新华书店', s3: '「你先逛，我在那边。」', s5: '「这本……你看过吗？我想买给你。」', fx: { aff: 6, study: 2, sleep: -1 } },
+  { name: '星汇电影院', s3: '「你选吧，我都行。」', s5: '「刚才那段，我其实没怎么看。」', fx: { aff: 7, social: 3, sleep: -2 } },
   { name: '人民公园', s3: '「走一圈就回去吧。」', s5: '「再坐一会儿，好不好？」', fx: { aff: 6, social: 3, sleep: 1 } },
-  { name: '高三楼后面的园林', s3: '「这儿清静。」', s5: '「以后我们也来这儿吧，就我们俩。」', fx: { aff: 8, social: 4, study: -1 } },
-  { name: '小巷', s3: '「……这边晚上挺安静的。」', s5: '「你说，毕业以后我们会怎么样？」', fx: { aff: 9, social: 5, study: -2, sleep: -1 } },
+  { name: '可园', s3: '「这儿景色不错。」', s5: '「以后我们也来这儿吧，就我们俩。」', fx: { aff: 8, social: 4, study: -1 } },
+  { name: '象塔街', s3: '「……这边挺安静的。」', s5: '「你说，毕业以后我们会怎么样？」', fx: { aff: 9, social: 5, study: -2, sleep: -1 } },
 ];
 
 // 男生线约会地点：能一起「做点什么」的地方优先，纯坐着聊天的地方靠后
 const DATE_SPOTS_BOY = [
   { name: '篮球场', s3: '「你站边上，别给人撞了。」', s5: '「教你投篮。手抬高点——你这个手，我扶着。」', fx: { aff: 8, social: 4, study: -1, sleep: -1 } },
-  { name: '游戏厅', s3: '「输的人请喝水。」', s5: '「再来一局。这把不算，你刚才把我手挡了。」', fx: { aff: 7, social: 3, sleep: -1 } },
+  { name: '波波台球厅', s3: '「输的人请喝水。」', s5: '「再来一局。这把不算，你刚才把我手挡了。」', fx: { aff: 7, social: 3, sleep: -1 } },
   { name: '图书馆', s3: '「你安静点。」', s5: '「这本我也看过了。你看到哪页了？」', fx: { aff: 6, study: 2, sleep: -1 } },
-  { name: '书店', s3: '「你挑吧，我随便。」', s5: '「这本给你。」（他付过钱了）', fx: { aff: 6, study: 2, sleep: -1 } },
+  { name: '新华书店', s3: '「你挑吧，我随便。」', s5: '「这本给你。」（他付过钱了）', fx: { aff: 6, study: 2, sleep: -1 } },
   { name: '人民公园', s3: '「走一圈就回。」', s5: '「坐会儿。……你冷吗。」', fx: { aff: 6, social: 3, sleep: 1 } },
-  { name: '小巷', s3: '「这儿好安静。」', s5: '「以后常来这儿吧。就我们俩。」', fx: { aff: 9, social: 5, study: -2, sleep: -1 } },
-  { name: '小饭馆', s3: '「你吃辣的还是不放辣。」', s5: '「给你点的。我记着你上次说这个好吃。」', fx: { aff: 7, social: 4, study: -2, sleep: -1 } },
+  { name: '象塔街', s3: '「这儿好安静。」', s5: '「以后常来这儿吧。就我们俩。」', fx: { aff: 9, social: 5, study: -2, sleep: -1 } },
+  { name: '湘川木桶饭', s3: '「你吃辣的还是不放辣。」', s5: '「给你点的。我记着你上次说这个好吃。」', fx: { aff: 7, social: 4, study: -2, sleep: -1 } },
+  { name: '东莞宾馆餐厅', s3: '「这个好吃，你尝尝。」', s5: '「好吃(￣▽￣)，以后还来！」', fx: { aff: 10, social: 4, study: -2, sleep: -1 } },
 ];
 
 function dateSpots() { return loveIsBoy() ? DATE_SPOTS_BOY : DATE_SPOTS; }
@@ -4192,14 +4732,14 @@ function buildLoveFestivalEvent() {
         { label: '记得，而且准备了礼物', fx: { aff: 15, sleep: -2, study: -1 }, kind: 'love', title: '🎂 准备了礼物',
           text: loveIsBoy()
             ? lp({ A: '「……你怎么知道。」TA 把礼物收得很紧，一直没拆。', B: '「你居然记得？」TA 笑着拆了一半，忽然停住，把盒子抱在怀里。', C: '「……谢谢。」TA 把盒子放在膝盖上看了很久，没有当场拆。', D: '「谁让你送的。」TA 把盒子收得很紧，一整个下午都放在手边。' })
-            : lp({ A: '「你怎么会知道……」TA 捏着盒子，很久没拆。', B: '「哇——你居然记得！」TA 差点跳起来。', C: '「……谢谢。我很久没过生日了。」', D: '「谁、谁要你送礼物了。」TA 抱着盒子不撒手。' }),
+            : lp({ A: '「你怎么会知道……」TA 捏着盒子，很久没拆。', B: '「哇——你居然记得！」TA 差点跳起来。', C: '「…………谢谢你。我有很久没过生日了。」', D: '「谁、谁要你送礼物了。」TA 抱着盒子不撒手。' }),
           journal: '· 生日：准备了礼物',
           onPick: () => { sems('bdaySems').push(S.semIdx); } },
-        { label: '只在群里发了「生日快乐」', fx: { aff: 2 }, kind: 'love', title: '🎂 群里发的',
+        { label: '只在手机上发了「生日快乐」', fx: { aff: 2 }, kind: 'love', title: '🎂 线上祝福',
           text: loveIsBoy()
             ? `「哦，谢了。」${ta}回得很快，但没有再多说一句。`
             : `「嗯，谢谢。」${ta}回得很快，但没有再多说一句。`,
-          journal: '· 生日：群里发的',
+          journal: '· 生日：线上祝福',
           onPick: () => { sems('bdaySems').push(S.semIdx); } },
       ],
     };
@@ -4212,11 +4752,11 @@ function buildLoveFestivalEvent() {
       intro: {
         kind: 'love',
         title: '🏟️ 校际比赛日',
-        body: `10 月，校际比赛。看台上挤满了人，横幅被风吹得啪啪响。\n\n${L.name} 的名字在出场名单的第三个。`,
+        body: `10 月，校际比赛。球场旁挤满了人，横幅被风吹得啪啪响。\n\n${L.name} 的名字在出场名单的第三个。`,
       },
       options: [
         { label: '站到最前面，喊他的名字', fx: { aff: 10, social: 3, sleep: -1 }, kind: 'love', title: '🏟️ 到场加油',
-          text: `${ta}上场前在看台扫了一圈，找到你。什么都没说，但下场之后往你这边扔了毛巾。`,
+          text: `${ta}上场前在人群中扫了一圈，找到你。什么都没说，但下场之后往你这边扔了毛巾。`,
           journal: '· 校际比赛：到场加油',
           onPick: () => { sems('matchSems').push(S.semIdx); } },
         { label: '去了，但站在人群后面', fx: { aff: 4, social: 1 }, kind: 'love', title: '🏟️ 站在后面',
@@ -4240,18 +4780,18 @@ function buildLoveFestivalEvent() {
       intro: {
         kind: 'love',
         title: '🍫 情人节',
-        body: `2 月 14 日。教室里飘着巧克力味，走廊上有人偷偷往别人抽屉里塞东西。\n\n你摸了摸书包——你准备了吗？`,
+        body: `2 月 14 日。教室里飘着巧克力味，走廊上有人偷偷往别人抽屉里塞东西。\n\n你摸了摸书包——你准备礼物了吗？`,
       },
       options: [
-        { label: '自己做的，包装歪歪扭扭', fx: loveIsBoy() ? boyHandFx : { aff: 12, sleep: -2, study: -1 }, kind: 'love', title: '🍫 手作巧克力',
+        { label: '自己做的，包装歪歪扭扭', fx: loveIsBoy() ? boyHandFx : { aff: 12, sleep: -2, study: -1 }, kind: 'love', title: '🍫 手作礼物',
           text: loveIsBoy()
             ? (L.aff < 60
-              ? `「……你自己做的？」${ta}拆开纸的时候手有点抖，拆坏了。他看了你一眼，把碎掉的那块先塞进嘴里。`
+              ? `「……你自己做的？」${ta}拆开纸的时候手有点抖，拆坏了。他看了你一眼，眼神里透出惊喜。`
               : `「……你做的？」${ta}拆开纸的时候手有点抖，拆坏了。`)
             : `「……你自己做的？」${ta}拆开包装纸的时候手有点抖。`,
-          journal: '· 情人节：手作巧克力',
+          journal: '· 情人节：手作礼物',
           onPick: () => { sems('valentineSems').push(S.semIdx); } },
-        { label: '买了现成的', fx: { aff: loveIsBoy() ? 6 : 5 }, kind: 'love', title: '🍫 买来的巧克力',
+        { label: '买了现成的', fx: { aff: loveIsBoy() ? 6 : 5 }, kind: 'love', title: '🍫 买来的礼物',
           text: loveIsBoy()
             ? `「谢了。」${ta}塞进书包。第二天你看到包装纸的角还露在外面。`
             : `「谢谢。」${ta}收下了，放进书包最里面。`,
@@ -4275,11 +4815,11 @@ function buildLoveFestivalEvent() {
       intro: {
         kind: 'love',
         title: '🎄 圣诞节',
-        body: `12 月 25 日，晚自习前。走廊的窗上贴了手剪的雪花，广播里放着陈奕迅的《Lonely Christmas》。\n\n${ta}在你桌边停下来。`,
+        body: `12 月 25 日，下午下课后。广播里放着陈奕迅的《Lonely Christmas》，有的同学在做手工圣诞树，有点同学在写贺卡。\n\n${ta}在你桌边停下来。`,
       },
       options: [
         lover
-          ? { label: '「今年我们两个人过吧。」', fx: { aff: 6, social: 3, sleep: -1 }, kind: 'love', title: '🎄 两个人的圣诞',
+          ? { label: '「今年我们两个人一起过吧。」', fx: { aff: 6, social: 3, sleep: -1 }, kind: 'love', title: '🎄 两个人的圣诞',
               text: loveIsBoy()
                 ? `「……行。」${ta}答应得很快，快到像早就等着这句话。`
                 : `「……好。」${ta}答应得很轻，但一直没有走开。`,
@@ -4567,7 +5107,7 @@ function loveEnding() {
   }
   if (S.flags.rejected >= 1 && S.flags.breakups >= 1) {
     return {
-      title: '青涩的回忆',
+      title: '懵懂的青春',
       desc: '三年里，你拒绝过别人，也被拒绝过；牵过手，也松开过手。毕业照上你笑得很标准——有些心动，本来就只适合放在回忆里。',
     };
   }
@@ -4669,7 +5209,7 @@ function doEnding() {
     <div class="record-row"><span>大学结局</span><b>${university.tier} · ${university.school}</b></div>
     <div class="record-row"><span>志愿填报</span><b>${volunteerText.replace('志愿取向：', '')}</b></div>
     <div class="record-row"><span>学习属性档位</span><b>${gaokao.bandLabel} · ${gaokao.rangeLabel}</b></div>
-    <div class="record-row"><span>发挥失常扣分</span><b>-${gaokao.competitionPenalty} 分（仅高考）</b></div>
+    <div class="record-row"><span>发挥失常扣分</span><b>-${gaokao.competitionPenalty} 分</b></div>
     <div class="record-row"><span>强制休学</span><b>${leaveDurationLabel(S.totalLeaveMonths || 0)} · ${S.leaveCount || 0} 次</b></div>
     <div class="record-row"><span>最终结局</span><b>${finalState}</b></div>
     <div class="record-row"><span>留下的信物</span><b>${(S.love && S.love.keepsakes && S.love.keepsakes.length) ? S.love.keepsakes.join(' · ') : '—'}</b></div>
@@ -4773,9 +5313,9 @@ function showDex() {
   if (S.round > totalRounds() || S.ended) got.push('全勤战士');
   const foodDexMap = {
     '饭堂·早餐莞中大包': '早餐莞中大包',
-    '饭堂·大鸡腿': '大鸡腿',
-    '饭堂·薯条': '薯条',
-    '饭堂·宵夜': '宵夜',
+    '饭堂·炸大鸡腿': '大鸡腿',
+    '饭堂·水蒸蛋': '水蒸蛋',
+    '饭堂·冰凉粉': '冰凉粉',
     '校外·莞香': '莞香',
     '校外·品中品': '品中品',
     '校外·老鸭粉丝汤': '老鸭粉丝汤',

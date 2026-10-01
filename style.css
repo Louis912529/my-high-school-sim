@@ -421,6 +421,15 @@ button { -webkit-appearance: none; }
 .result-tag { color: var(--orange); font-weight: 900; font-size: 12px; margin-bottom: 6px; }
 .result-body { color: #5b5d52; font-size: 12.5px; line-height: 1.7; }
 
+.continue-choice-module {
+  border-color: var(--green);
+  background: linear-gradient(180deg, rgba(223, 234, 223, .55), rgba(255, 253, 247, .9));
+  text-align: center;
+}
+.continue-choice-module .module-kicker { color: var(--green); }
+.continue-choice-module .module-context { margin-bottom: 10px; }
+.continue-choice-module .grad-btn { margin-top: 4px; letter-spacing: 6px; }
+
 /* ---------- 底部校园动态 / 工具 ---------- */
 .footer {
   flex: 0 0 auto;          /* 变成自适应高度 */

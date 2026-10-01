@@ -1321,6 +1321,27 @@ function gateChoices(area) {
   };
   choices.parentNode.insertBefore(btn, choices);
 }
+
+/* ================================================================
+   继续按钮：每次事件处理完后，显示一个按钮，玩家点击才继续队列。
+   避免一次性把多张事件卡全部刷到日志里，玩家来不及看。
+   ================================================================ */
+function showContinueBtn(onContinue) {
+  const area = $('#action-area');
+  area.innerHTML = `
+    <div class="choice-module continue-choice-module">
+      <div class="module-kicker">📖 继续往下看</div>
+      <div class="module-context">看完上面的内容后，点下面的按钮继续。</div>
+      <button class="grad-btn continue-btn">继 续</button>
+    </div>`;
+  area.querySelector('.continue-btn').onclick = () => {
+    area.innerHTML = '';
+    onContinue();
+  };
+  requestAnimationFrame(() => {
+    try { area.scrollIntoView({ block: 'end', behavior: 'smooth' }); } catch (e) {}
+  });
+}
 function scrollLogToEnd() {
   const log = $('#log');
   const actionArea = $('#action-area');
@@ -1676,27 +1697,30 @@ function processQueue() {
       logEvent(sc.kind || 'event', sc.title, sc.body, sc.fx);
       if (sc.journal) journal(sc.journal);
       if (sc.onPick) sc.onPick();
-      // 纯文本事件：给一点缓冲，让下一条事件慢一拍再上，
-      // 否则一整条队列会一瞬间全部刷完，艺术节 / 高雅艺术这种"独一段"容易被刷过头。
-      break;
+      // 处理完一个文本事件后，显示"继续"按钮
+      if (QUEUE.length) {
+        showContinueBtn(() => processQueue());
+      } else {
+        finishRound();
+      }
+      return;
     }
     if (sc.t === 'exam') {
       QUEUE.shift();
       doExam();
-      continue;
+      // 考试后也停下，等玩家看完成绩再继续
+      if (QUEUE.length) {
+        showContinueBtn(() => processQueue());
+      } else {
+        finishRound();
+      }
+      return;
     }
     if (sc.t === 'choice') {
       renderEventChoice(sc);
       return;
     }
     QUEUE.shift();
-  }
-  // 队列走完 → 进入下一轮（或学期结算 / 结局）
-  // 队列走完 → 进入下一轮（或学期结算 / 结局）
-  // 但刚才如果是被"纯文本事件"中断的，要等一拍再继续，让玩家有时间读到。
-  if (QUEUE.length) {
-    setTimeout(processQueue, 400);
-    return;
   }
   finishRound();
 }
@@ -1749,7 +1773,12 @@ function renderEventChoice(sc) {
         const nextEvent = typeof result.next === 'function' ? result.next() : result.next;
         if (nextEvent) QUEUE.unshift(nextEvent);
       }
-      processQueue();
+      // 不再自动处理队列，而是先显示"继续"按钮，让玩家看完结果卡
+      if (QUEUE.length) {
+        showContinueBtn(() => processQueue());
+      } else {
+        finishRound();
+      }
     };
   });
   scrollLogToEnd();
@@ -2207,14 +2236,38 @@ const CAMPUS_EVENTS = [
   },
   {
     t: 'choice',
-    condition: () => S.semIdx >= 4 && !S.flags.volunteerSeen,
+    condition: () => S.semIdx === 5 && S.roundInSem >= Math.floor(monthsInSem() * 0.6) && !S.flags.graduationSeen,
     build: () => ({
-      title: '📝 志愿填报',
-      body: `${gaokaoDateLabel()}，高考结束。志愿填报系统开放了，分数还没正式出来，但你已经开始在「冲一冲、稳一稳、保一保」之间来回改草稿。`,
+      title: '🎓 毕业典礼',
+      body: `高考结束，学校在礼堂举办毕业典礼。\n\n你穿着校服，最后一次走进这个三年前第一次走进的地方。体育馆里坐满了人，广播里放着很轻的音乐。`,
       options: [
-        { label: '冲一冲，填最想去的大学', fx: { social: 3, sleep: -1 }, text: '你把最想去的专业放在第一志愿。结果如何先不管，至少这一次你没有只按别人眼里的稳妥来选。', kind: 'good', journal: '· 志愿填报：冲理想大学', onPick: () => { S.flags.volunteerChoice = '冲刺'; S.flags.volunteerSeen = true; } },
-        { label: '稳一稳，按分数梯度填报', fx: { study: 1, social: 2 }, text: '你列了三张表，把城市、专业和录取概率逐项对比。没有最浪漫的答案，但每一档都留了退路。', kind: 'event', journal: '· 志愿填报：稳妥梯度', onPick: () => { S.flags.volunteerChoice = '稳妥'; S.flags.volunteerSeen = true; } },
-        { label: '保一保，先确保有书读', fx: { sleep: 2, social: 1 }, text: '你给自己留了足够的保底志愿。面对不确定的分数，能把选择权握在手里，也是一种成熟。', kind: 'good', journal: '· 志愿填报：保底优先', onPick: () => { S.flags.volunteerChoice = '保底'; S.flags.volunteerSeen = true; } },
+        {
+          label: '和同桌合影，把这三年留在相册里',
+          fx: { social: 4, sleep: -1 },
+          kind: 'good',
+          title: '🎓 合影',
+          text: '你们在WiFi女神前拍了很多张，有的正经有的搞怪。最后一张是全班合影，所有人都在笑。',
+          journal: '· 毕业典礼：合影',
+          onPick: () => { S.flags.graduationSeen = true; S.flags.volunteerSeen = true; },
+        },
+        {
+          label: '和班主任单独说几句话',
+          fx: { social: 3, study: 1 },
+          kind: 'good',
+          title: '🎓 告别班主任',
+          text: '你走到班主任面前，想了半天，最后只说了一句「谢谢老师」。班主任拍了拍你的肩：「好好走后面的路。」',
+          journal: '· 毕业典礼：告别班主任',
+          onPick: () => { S.flags.graduationSeen = true; S.flags.volunteerSeen = true; },
+        },
+        {
+          label: '一个人在操场走一圈',
+          fx: { sleep: 2, social: 1 },
+          kind: 'event',
+          title: '🎓 操场走一圈',
+          text: '你从跑道起点慢慢走到终点。操场上还有零散的几个人，在看台上吹风、在跑道上散步。',
+          journal: '· 毕业典礼：操场走一圈',
+          onPick: () => { S.flags.graduationSeen = true; S.flags.volunteerSeen = true; },
+        },
       ],
     }),
   },
@@ -2592,6 +2645,25 @@ const DAILY_ACTIVITY_POOL = [
   // 学术
   { label: '去办公室找老师问问题', fx: { study: 3, sleep: -2 }, title: '📚 办公室答疑', text: '你去办公室问了一道一直没想明白的题。老师讲完，你终于懂了。', journal: '· 活动：办公室答疑' },
   { label: '去图书馆自习', fx: { study: 2, sleep: -1, social: -1 }, title: '📚 图书馆自习', text: '你在图书馆找了个靠窗的位置坐下来，安安静静写了两页作业。', journal: '· 活动：图书馆自习' },
+    // ===== 教室电脑 =====
+  { label: '用教室电脑玩扫雷', fx: { sleep: 1, social: 1, study: -1 }, title: '💻 教室扫雷', text: '你趁老师不在打开了教室电脑，从开始菜单里翻出了扫雷。第一局三步就踩雷了，第二局撑到了 30 秒。', journal: '· 活动：教室电脑扫雷' },
+  { label: '用教室电脑放电影', fx: { sleep: 1, social: 2, study: -2 }, title: '💻 教室电影', text: '几个同学把窗帘拉上，用投影放了一部老片子。看到一半有人推门，全班瞬间把屏幕切回 PPT。', journal: '· 活动：教室电脑放电影' },
+  { label: '用教室电脑偷偷看小说', fx: { sleep: 1, social: -1, study: 1 }, title: '💻 教室看小说', text: '你在教室电脑上打开了一个在线阅读网站，边看边盯着门口。一章看完，才发现上课铃快响了。', journal: '· 活动：教室电脑看小说' },
+  { label: '用教室电脑查大学资料', fx: { study: 3, sleep: -1 }, title: '💻 查大学资料', text: '你在教室电脑上搜了几所目标大学的官网，把专业介绍一条一条抄进笔记本。查完之后，目标更具体了。', journal: '· 活动：查大学资料' },
+  { label: '用教室电脑打 4399', fx: { social: 2, sleep: -1, study: -2 }, title: '💻 4399', text: '你和同桌在教室电脑上打开了一个老网站。玩了十分钟，被班主任从窗外看了一眼，赶紧切成课件。', journal: '· 活动：教室电脑 4399' },
+
+  // ===== 出校玩 =====
+  { label: '中午溜出校门吃碗面', fx: { sleep: 1, social: 2, study: -1 }, title: '🍜 出校吃面', text: '你和同桌趁着午休溜出校门，在校门口那家面馆各点了一碗。回校的时候，门卫正好在打瞌睡。', journal: '· 活动：溜出校门吃面' },
+  { label: '放学后去校门口奶茶店', fx: { social: 3, sleep: 1, study: -1 }, title: '🧋 奶茶店', text: '你们在奶茶店坐了很久，聊的都是和学习无关的事。走的时候，杯子里还剩半杯冰。', journal: '· 活动：校门口奶茶店' },
+  { label: '和同学去学校后面的小巷', fx: { social: 3, sleep: 1, study: -2 }, title: '🌆 后面的巷子', text: '巷子不长，有几家小店。你们在一家文具店门口站了一会儿，什么也没买就走了。', journal: '· 活动：学校后面的巷子' },
+
+  // ===== 高三专属 =====
+  { label: '晚修偷偷和同桌下五子棋', fx: { social: 2, sleep: -1, study: -2 }, title: '♟️ 五子棋', text: '你们在草稿纸背面画了个棋盘，用铅笔头当棋子。下到一半，值班老师从窗口探进半个身子，两个人同时把纸翻过去。', journal: '· 活动：晚修下五子棋' },
+  { label: '在教室后面用课本搭挡板打牌', fx: { social: 4, sleep: -1, study: -3 }, title: '🃏 教室打牌', text: '几个人围在教室后面，用立起来的课本搭了个"掩体"。每打完一局都要重新摆一次挡板。', journal: '· 活动：教室打牌' },
+  { label: '集体翘掉一节自习去操场', fx: { social: 5, sleep: 1, study: -3 }, title: '🏃 翘自习', text: '你们几个趁课间溜出教室，跑到操场边的看台上坐了一节课。风很大，聊了很多。回来的时候没人问你们去哪了。', journal: '· 活动：集体翘自习' },
+  { label: '跑到天台吃一顿带进校的外卖', fx: { social: 4, sleep: -1, study: -2 }, title: '🍱 天台外卖', text: '你们约好在天台碰头，一边吃一边看着操场。吃到一半，楼下有人在喊谁的名字。', journal: '· 活动：天台外卖' },
+  { label: '在教室后墙涂一张班级签名板', fx: { social: 5, sleep: -1, study: -1 }, title: '✍️ 签名板', text: '有人搬来一大张白纸贴在教室后墙，全班轮流签名、写留言。写到最后，连平时最不爱说话的人也留了一行。', journal: '· 活动：班级签名板' },
+  { label: '和几个同学在操场上放歌', fx: { social: 5, sleep: 1, study: -2 }, title: '🎵 操场放歌', text: '有人拿出蓝牙音箱，几个人坐在看台上跟着唱。唱到第三首，巡夜的老师过来了，你们把音箱关掉，谁也没走。', journal: '· 活动：操场放歌' },
 ];
 
 const DAILY_SLOTS = [
@@ -2983,27 +3055,69 @@ function advanceDailySlot() {
    毕业旅行 · 高考结束后
    志愿填报事件已触发（volunteerSeen）时，日常选项整体切换为旅行。
    ================================================================ */
+/* ================================================================
+   毕业季 · 高考后到出分前
+   混合了本地庆祝（打球 / 火锅 / 唱K / 宿舍夜话）和毕业旅行。
+   每次从池子里随机抽 4 个。
+   ================================================================ */
 const TRAVEL_DESTINATIONS = [
+  // ===== 本地庆祝 =====
+  {
+    label: '和同学打最后一场球',
+    fx: { sleep: 2, social: 7, study: -2 },
+    title: '🏀 最后一场球',
+    text: '你们约在操场打了整整一下午。有人穿着拖鞋来，有人穿着校服。抢篮板的时候摔了一跤，爬起来还是笑。\n\n天黑之后，谁都没提下次什么时候再打。因为都知道，下次就说不准了。',
+    journal: '· 毕业季：最后一场球',
+  },
+  {
+    label: '和同学去吃火锅',
+    fx: { sleep: 1, social: 8, study: -2 },
+    title: '🍲 火锅店',
+    text: '包间里挤了十个人，锅底选了鸳鸯。有人点了一盘毛肚，三秒就没了。\n\n吃到一半，有人开始讲高一刚开学的事，讲到一半自己先笑了。这顿饭吃了三个小时，出门的时候，外面已经全黑。',
+    journal: '· 毕业季：火锅',
+  },
+  {
+    label: '在宿舍开一场唱K',
+    fx: { sleep: -2, social: 8, study: -2 },
+    title: '🎤 宿舍唱K',
+    text: '有人拿手机放伴奏，有人把扫把当话筒。你们从周杰伦唱到陈奕迅，从高一班歌一直唱到毕业曲。\n\n唱到凌晨一点的时候，隔壁宿舍过来敲门：「我们也加入。」',
+    journal: '· 毕业季：宿舍唱K',
+  },
+  {
+    label: '和同桌回学校拍照',
+    fx: { sleep: 2, social: 6, study: -1 },
+    title: '📷 回学校拍照',
+    text: '你们回到教室、走廊、操场、图书馆。每个地方都拍一张，手机相册里很快就堆了几百张。\n\n拍到最后，连当年被班主任骂过的那个后门也拍了一张。',
+    journal: '· 毕业季：回学校拍照',
+  },
+  {
+    label: '和几个朋友去 KTV 唱通宵',
+    fx: { sleep: -3, social: 9, study: -2 },
+    title: '🎶 通宵 KTV',
+    text: '包厢里暗得看不清脸，只有屏幕是亮的。有人唱到破音，有人全程只切歌不唱。\n\n凌晨四点，你们走出 KTV，天还是黑的。有人提议去吃早餐，所有人都同意了。',
+    journal: '· 毕业季：通宵 KTV',
+  },
+  {
+    label: '和同学一起去看日出',
+    fx: { sleep: -2, social: 7, study: -1 },
+    title: '🌅 看日出',
+    text: '凌晨四点起床，骑车去了江边。天从深蓝变成浅蓝，再变成橙色。\n\n太阳从桥后面升上来的时候，有人举起了手机，有人只是安静地看着。',
+    journal: '· 毕业季：江边看日出',
+  },
+  {
+    label: '和几个朋友去吃夜宵到凌晨',
+    fx: { sleep: -2, social: 7, study: -1 },
+    title: '🍢 夜宵摊',
+    text: '路边的小摊子支了几张塑料桌。烤串、炒粉、冰啤酒，摆了一整桌。\n\n吃到凌晨两点，老板收摊了，你们才慢慢散场。谁也没打车，都说「走走醒醒酒」。',
+    journal: '· 毕业季：夜宵到凌晨',
+  },
+  // ===== 旅行 =====
   {
     label: '去厦门看海',
     fx: { sleep: 4, social: 6, study: -2 },
     title: '🌊 厦门',
     text: '沿着环岛路骑车，海风咸咸的。你在沙滩上坐了很久，什么都没想。\n\n晚上和同行的同学吃了大排档，第二天醒来发现已经不记得昨夜的细节。',
     journal: '· 毕业旅行：厦门',
-  },
-  {
-    label: '去西安看兵马俑',
-    fx: { sleep: 3, social: 5, study: 3 },
-    title: '🏛️ 西安',
-    text: '兵马俑坑比课本上的照片大得多。你站在一号坑边上，看着两千年前的士兵排成一列。\n\n回程路上，导游讲了半路的历史，你居然一句都没觉得无聊。',
-    journal: '· 毕业旅行：西安',
-  },
-  {
-    label: '去上海逛外滩',
-    fx: { sleep: 3, social: 6, study: -1 },
-    title: '🌃 上海',
-    text: '外滩的灯亮到半夜，对岸的东方明珠一闪一闪。你和同学靠着栏杆站了很久。\n\n第二天早上，你们在南京路上吃了生煎，然后各自赶不同的返程车。',
-    journal: '· 毕业旅行：上海',
   },
   {
     label: '去成都吃火锅',
@@ -3013,17 +3127,10 @@ const TRAVEL_DESTINATIONS = [
     journal: '· 毕业旅行：成都',
   },
   {
-    label: '去北京看故宫',
-    fx: { sleep: 3, social: 5, study: 4 },
-    title: '🏯 北京',
-    text: '故宫比想象中大得多，走了六个小时也只逛了一半。\n\n从午门出来的时候，夕阳把琉璃瓦照得发亮。你在景山公园的山顶坐了很久，看着底下的整片红墙。',
-    journal: '· 毕业旅行：北京',
-  },
-  {
     label: '去云南看洱海',
     fx: { sleep: 5, social: 5, study: -1 },
     title: '🏔️ 云南',
-    text: '洱海的水比照片里更蓝。你租了一辆电动车，沿着环海路慢慢骑。\n\n在双廊的一家咖啡馆坐了一下午，看着湖对面的大山发呆。没人催你写作业，也没人问你考得怎么样。',
+    text: '洱海的水比照片里更蓝。你们租了两辆电动车，沿着环海路慢慢骑。\n\n在双廊的一家咖啡馆坐了一下午，看着湖对面的大山发呆。没人催你写作业，也没人问你考得怎么样。',
     journal: '· 毕业旅行：云南',
   },
   {
@@ -3034,19 +3141,34 @@ const TRAVEL_DESTINATIONS = [
     journal: '· 毕业旅行：香港',
   },
   {
+    label: '去北京看故宫',
+    fx: { sleep: 3, social: 5, study: 4 },
+    title: '🏯 北京',
+    text: '故宫比想象中大得多，走了六个小时也只逛了一半。\n\n从午门出来的时候，夕阳把琉璃瓦照得发亮。你在景山公园的山顶坐了很久，看着底下的整片红墙。',
+    journal: '· 毕业旅行：北京',
+  },
+  {
+    label: '去西安看兵马俑',
+    fx: { sleep: 3, social: 5, study: 3 },
+    title: '🏛️ 西安',
+    text: '兵马俑坑比课本上的照片大得多。你站在一号坑边上，看着两千年前的士兵排成一列。\n\n回程路上，导游讲了半路的历史，你居然一句都没觉得无聊。',
+    journal: '· 毕业旅行：西安',
+  },
+  // ===== 反向选项 =====
+  {
     label: '哪都不去，在家躺一个暑假',
     fx: { sleep: 8, social: -3, study: -5 },
     title: '🛋️ 家',
     text: '你选择了在家躺平。前几天睡到中午，起来刷手机，晚上追剧到两三点。\n\n半个月后，你开始觉得这种生活其实也没那么香，但又不想动。',
-    journal: '· 毕业旅行：在家躺平',
+    journal: '· 毕业季：在家躺平',
   },
 ];
 
 function buildDailyEvent() {
   if (!S) return null;
 
-  // 高考结束后，日常选项整体换成毕业旅行
-  if (S.flags && S.flags.volunteerSeen) {
+  // 毕业典礼之后，日常选项整体换成毕业季
+  if (S.flags && (S.flags.graduationSeen || S.flags.volunteerSeen)) {
     const options = shuffle(TRAVEL_DESTINATIONS).slice(0, 4).map((d) => ({
       label: d.label,
       fx: d.fx,
@@ -3057,13 +3179,13 @@ function buildDailyEvent() {
     }));
     return {
       t: 'choice',
-      kicker: '✈️ 毕业旅行',
-      hint: '高考结束了，终于有时间出去玩。',
+      kicker: '🎉 毕业季',
+      hint: '高考结束了，想怎么庆祝都行。',
       moduleClass: 'daily-choice-module',
       intro: {
         kind: 'daily',
-        title: '✈️ 毕业旅行',
-        body: '成绩还没出来。几个月的紧绷突然松开，你想去哪走走？',
+        title: '🎉 毕业季',
+        body: '成绩还没出来。几个月的紧绷突然松开——想做什么都可以了。',
       },
       options,
     };
@@ -3071,15 +3193,25 @@ function buildDailyEvent() {
 
   const slot = DAILY_SLOTS[dailySlotIndex()];
   advanceDailySlot();
-  // 每个时段都从对应的池子里随机抽 4 个；morning / evening 用固定的 4 个选项
 
+  // 每个时段从对应的池子里抽 3 个
   let rawOptions;
-  if (slot.key === 'break') rawOptions = shuffle(BREAK_OPTIONS).slice(0, 4);
-  else if (slot.key === 'lunch') rawOptions = shuffle(LUNCH_OPTIONS).slice(0, 4);
-  else if (slot.key === 'afternoon') rawOptions = shuffle(AFTERNOON_OPTIONS).slice(0, 4);
-  else if (slot.key === 'night') rawOptions = shuffle(NIGHT_OPTIONS).slice(0, 4);
-  else if (slot.key === 'weekend') rawOptions = shuffle(WEEKEND_OPTIONS).slice(0, 4);
-  else rawOptions = slot.options.slice(0, 4);
+  if (slot.key === 'morning') rawOptions = shuffle(MORNING_OPTIONS).slice(0, 3);
+  else if (slot.key === 'break') rawOptions = shuffle(BREAK_OPTIONS).slice(0, 3);
+  else if (slot.key === 'lunch') rawOptions = shuffle(LUNCH_OPTIONS).slice(0, 3);
+  else if (slot.key === 'afternoon') rawOptions = shuffle(AFTERNOON_OPTIONS).slice(0, 3);
+  else if (slot.key === 'evening') rawOptions = shuffle(EVENING_OPTIONS).slice(0, 3);
+  else if (slot.key === 'night') rawOptions = shuffle(NIGHT_OPTIONS).slice(0, 3);
+  else if (slot.key === 'weekend') rawOptions = shuffle(WEEKEND_OPTIONS).slice(0, 3);
+  else rawOptions = slot.options.slice(0, 3);
+
+  // 混入一个「课外活动」，凑成 4 个选项。
+  // 高一高二 35%，高三 55%（让高三的日常更丰富一些）。
+  const activityChance = S.semIdx >= 4 ? 0.55 : 0.35;
+  if (chance(activityChance)) {
+    const activity = pick(DAILY_ACTIVITY_POOL);
+    rawOptions = [...rawOptions, activity];
+  }
 
   const options = rawOptions
     .filter((o) => !o.available || o.available())
@@ -3094,6 +3226,7 @@ function buildDailyEvent() {
     options,
   };
 }
+
 function buildDailyRandomEvent() {
   if (!S || !chance(DAILY_RANDOM_CHANCE)) return null;
   const raw = pick(DAILY_RANDOM_EVENTS);
@@ -5095,36 +5228,64 @@ function gaokaoBandForStudy(study) {
   const value = clamp(study);
   if (value < 30) {
     return {
-      id: 'bottom', label: '年级末流', rangeLabel: '470 分上下',
-      low: 465, high: 505,
-      expected: Math.round(465 + (value / 30) * 40),
+      id: 'bottom', label: '年级末流', rangeLabel: '415 分上下',
+      low: 415, high: 460,
+      expected: Math.round(415 + (value / 30) * 45),
     };
   }
-  if (value < 45) {
+  if (value < 50) {
     return {
-      id: 'low', label: '年级中下游', rangeLabel: '505～545 分',
-      low: 505, high: 545,
-      expected: Math.round(505 + ((value - 30) / 15) * 40),
+      id: 'low', label: '年级中下游', rangeLabel: '460～520 分',
+      low: 460, high: 520,
+      expected: Math.round(460 + ((value - 30) / 20) * 60),
     };
   }
   if (value < 60) {
     return {
-      id: 'middle', label: '年级中游', rangeLabel: '545～585 分',
-      low: 545, high: 585,
-      expected: Math.round(545 + ((value - 45) / 15) * 40),
+      id: 'middle', label: '年级中游', rangeLabel: '520～540 分',
+      low: 520, high: 540,
+      expected: Math.round(520 + (value - 50) * 2),
     };
   }
-  if (value < 78) {
+  if (value < 70) {
     return {
-      id: 'upper-middle', label: '年级中上游', rangeLabel: '585～635 分',
-      low: 585, high: 635,
-      expected: Math.round(585 + ((value - 60) / 18) * 50),
+      id: 'upper-middle', label: '年级中上游', rangeLabel: '540～568 分',
+      low: 540, high: 568,
+      expected: Math.round(540 + (value - 60) * 2.8),
+    };
+  }
+  if (value < 80) {
+    return {
+      id: 'up', label: '年级上游', rangeLabel: '568～590 分',
+      low: 568, high: 590,
+      expected: Math.round(568 + (value - 70) * 2.2),
+    };
+  }
+  if (value < 90) {
+    return {
+      id: 'top', label: '年级前列', rangeLabel: '590～640 分',
+      low: 590, high: 640,
+      expected: Math.round(590 + (value - 80) * 5),
+    };
+  }
+  if (value < 95) {
+    return {
+      id: 'elite', label: '年级顶尖', rangeLabel: '640～660 分',
+      low: 640, high: 660,
+      expected: Math.round(640 + (value - 90) * 4),
+    };
+  }
+  if (value < 98) {
+    return {
+      id: 'genius', label: '清北潜力', rangeLabel: '660～680 分',
+      low: 660, high: 680,
+      expected: Math.round(660 + (value - 95) * (20 / 3)),
     };
   }
   return {
-    id: 'front', label: '年级前沿', rangeLabel: '635～700 分',
-    low: 635, high: 690,
-    expected: Math.round(635 + ((value - 78) / 22) * 65),
+    id: 'front', label: '清北层次', rangeLabel: '680～700 分',
+    low: 680, high: 700,
+    expected: Math.round(680 + (value - 98) * 6.67),
   };
 }
 
@@ -5437,7 +5598,7 @@ function doEnding() {
 
   $('#end-score').textContent = score;
   $('#end-academic').textContent = ac.title;
-  $('#end-academic-desc').textContent = `${gaokaoDateLabel()}，你走进考场。\n\n${ac.desc}\n\n大学结局：${university.tier} · ${university.school}\n${university.desc}\n${volunteerText}\n\n学习档位：${gaokao.bandLabel}\n预计区间：${gaokao.rangeLabel} · 结算基准 ${gaokao.expectedScore} 分\n发挥失常：-${gaokao.competitionPenalty} 分（只计入高考实际分数，学习属性不直接扣减）`;
+  $('#end-academic-desc').textContent = `${gaokaoDateLabel()}，你走进考场。\n\n6 月 25 日，分数出来了。\n\n${ac.desc}\n\n...`;
   $('#end-love-title').textContent = lv.title;
   $('#end-love-desc').textContent = lv.desc;
 

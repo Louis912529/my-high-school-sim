@@ -314,7 +314,7 @@ button { -webkit-appearance: none; }
   scrollbar-width: thin;
   scrollbar-color: #b8ae95 transparent;
   padding: 10px 13px 16px;
-  display: flex; flex-direction: column; gap: 9px; scroll-behavior: smooth;
+  display: flex; flex-direction: column; gap: 9px;
   background: linear-gradient(180deg, #faf7ed 0%, #f7f3e6 100%);
 }
 .event-card {

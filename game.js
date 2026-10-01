@@ -517,6 +517,45 @@ function journal(line) {
   el.scrollTop = el.scrollHeight;
 }
 
+/* ================================================================
+   慢速平滑滚动：自己控制速度，不用浏览器的 behavior: 'smooth'。
+   默认速度 220 像素/秒，能看清文字。想更慢改小，想更快改大。
+   同时会等滚动结束后再回调 onDone。
+   ================================================================ */
+const SLOW_SCROLL_SPEED = 220;   // 像素/秒
+
+function slowScrollToBottom(el, onDone) {
+  if (!el) { if (onDone) onDone(); return; }
+  const start = el.scrollTop;
+  const target = Math.max(0, el.scrollHeight - el.clientHeight);
+  const distance = target - start;
+
+  // 已经很接近底部了，直接到位
+  if (Math.abs(distance) < 3) {
+    el.scrollTop = target;
+    if (onDone) onDone();
+    return;
+  }
+
+  // 距离越远，时长越长；速度固定 220 像素/秒
+  const duration = Math.max(240, (Math.abs(distance) / SLOW_SCROLL_SPEED) * 1000);
+  const startTime = performance.now();
+
+  function step(now) {
+    const t = Math.min(1, (now - startTime) / duration);
+    // easeInOutQuad 缓动：起步慢、中段快、收尾慢，视觉上最舒服
+    const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    el.scrollTop = start + distance * eased;
+    if (t < 1) {
+      requestAnimationFrame(step);
+    } else {
+      el.scrollTop = target;
+      if (onDone) onDone();
+    }
+  }
+  requestAnimationFrame(step);
+}
+
 function logEvent(kind, title, body, fx, extraHtml, fxLabels) {
   const log = $('#log');
   const sem = SEM_NAMES[S ? S.semIdx : 0];
@@ -536,10 +575,8 @@ function logEvent(kind, title, body, fx, extraHtml, fxLabels) {
   // action-area 始终留在最底部，玩家打开选项时不用再翻回去找按钮。
   // 新剧情追加到末尾，并滚动到底部看最新内容
   log.appendChild(div);
-  // 等待浏览器完成渲染，再滚动到底部
-  requestAnimationFrame(() => {
-    log.scrollTop = log.scrollHeight;
-  });
+  // 慢速滚动到底部，速度由 SLOW_SCROLL_SPEED 控制
+  slowScrollToBottom(log);
   return div;
 }
 
@@ -1312,6 +1349,9 @@ function gateChoices(area) {
   btn.className = 'choices-unlock';
   btn.innerHTML = '<span class="cu-icon">📖</span><span class="cu-text">看完剧情后<b>点这里做选择</b></span>';
   btn.onclick = () => {
+    if (btn.dataset.clicked === '1') return;
+    btn.dataset.clicked = '1';
+    btn.disabled = true;
     choices.classList.remove('gated');
     btn.remove();
     // 展开后柔和地把视线拉回选项区
@@ -1326,30 +1366,21 @@ function gateChoices(area) {
    继续按钮：每次事件处理完后，显示一个按钮，玩家点击才继续队列。
    避免一次性把多张事件卡全部刷到日志里，玩家来不及看。
    ================================================================ */
-function showContinueBtn(onContinue) {
-  const area = $('#action-area');
-  area.innerHTML = `
-    <div class="choice-module continue-choice-module">
-      <div class="module-kicker">📖 继续往下看</div>
-      <div class="module-context">看完上面的内容后，点下面的按钮继续。</div>
-      <button class="grad-btn continue-btn">继 续</button>
-    </div>`;
-  area.querySelector('.continue-btn').onclick = () => {
-    area.innerHTML = '';
-    onContinue();
-  };
-  requestAnimationFrame(() => {
-    try { area.scrollIntoView({ block: 'end', behavior: 'smooth' }); } catch (e) {}
-  });
+/* ================================================================
+   自动推进：不再用"继续"按钮，改成延迟一段时间自动往下播。
+   节奏：选择 → 停顿 → 剧情 → 停顿 → 下一个选项
+   ================================================================ */
+const AUTO_ADVANCE_DELAY = 1000;   // 每步停顿毫秒数（约等于原来 800ms 的 3 倍）
+
+function scheduleNext(onContinue) {
+  setTimeout(onContinue, AUTO_ADVANCE_DELAY);
 }
+
 function scrollLogToEnd() {
   const log = $('#log');
   const actionArea = $('#action-area');
-  // 等一下再滚，确保选项区已经渲染完成
-  requestAnimationFrame(() => {
-    if (log) log.scrollTop = log.scrollHeight;          // 剧情区滚到底部
-    if (actionArea) actionArea.scrollTop = 0;            // 选项区滚到顶部
-  });
+  if (actionArea) actionArea.scrollTop = 0;
+  slowScrollToBottom(log);
 }
 
 function showMainChoices() {
@@ -1399,6 +1430,15 @@ function showMainChoices() {
   gateChoices(area);
   area.querySelectorAll('.choice-btn').forEach((b) => {
     b.onclick = () => {
+      // 防止连点：立即禁用所有按钮并清空选项区
+      if (b.dataset.clicked === '1') return;
+      area.querySelectorAll('.choice-btn').forEach((x) => {
+        x.dataset.clicked = '1';
+        x.disabled = true;
+        x.style.pointerEvents = 'none';
+      });
+      area.innerHTML = '';
+
       const act = b.dataset.act;
       if (act === 'special') {
         // 特选的处理：直接结算，不走 chooseMain 的连击逻辑
@@ -1697,23 +1737,15 @@ function processQueue() {
       logEvent(sc.kind || 'event', sc.title, sc.body, sc.fx);
       if (sc.journal) journal(sc.journal);
       if (sc.onPick) sc.onPick();
-      // 处理完一个文本事件后，显示"继续"按钮
-      if (QUEUE.length) {
-        showContinueBtn(() => processQueue());
-      } else {
-        finishRound();
-      }
+      // 停顿后自动播下一条
+      scheduleNext(() => processQueue());
       return;
     }
     if (sc.t === 'exam') {
       QUEUE.shift();
       doExam();
-      // 考试后也停下，等玩家看完成绩再继续
-      if (QUEUE.length) {
-        showContinueBtn(() => processQueue());
-      } else {
-        finishRound();
-      }
+      // 停顿后自动播下一条
+      scheduleNext(() => processQueue());
       return;
     }
     if (sc.t === 'choice') {
@@ -1755,6 +1787,14 @@ function renderEventChoice(sc) {
   gateChoices(area);
   area.querySelectorAll('.choice-btn').forEach((btn) => {
     btn.onclick = () => {
+      // 防止连点：立即禁用所有按钮并清空选项区
+      if (btn.dataset.clicked === '1') return;
+      area.querySelectorAll('.choice-btn').forEach((b) => {
+        b.dataset.clicked = '1';
+        b.disabled = true;
+        b.style.pointerEvents = 'none';
+      });
+      area.innerHTML = '';
       const opt = sc.options[+btn.dataset.i];
       const result = opt.resolve ? opt.resolve() : opt;
       QUEUE.shift();
@@ -1774,11 +1814,11 @@ function renderEventChoice(sc) {
         if (nextEvent) QUEUE.unshift(nextEvent);
       }
       // 不再自动处理队列，而是先显示"继续"按钮，让玩家看完结果卡
-      if (QUEUE.length) {
-        showContinueBtn(() => processQueue());
-      } else {
-        finishRound();
-      }
+            // 先让日志平滑滚动显示结果卡，延迟 800ms 再显示"继续"按钮
+      setTimeout(() => {
+      // 先让结果卡显示出来，停顿后自动播下一条
+      scheduleNext(() => processQueue());
+      }, 800);
     };
   });
   scrollLogToEnd();

@@ -548,3 +548,29 @@ button { -webkit-appearance: none; }
 .track-card.extra.selected b { color: var(--orange); }
 
 .track-card.extra:hover { border-color: #c6bea6; }
+/* ---------- 内联选项卡片（嵌在剧情流里） ---------- */
+.inline-choice-module {
+  margin-top: 4px;
+}
+.inline-choice-module .module-kicker {
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 1px;
+}
+.inline-choice-module .module-context {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+  margin: 4px 0 7px;
+}
+.choice-made-module {
+  border-color: var(--green-2) !important;
+  background: rgba(78, 120, 90, .06) !important;
+}
+.choice-made {
+  color: var(--green);
+  font-size: 13px;
+  font-weight: 800;
+  padding: 6px 0;
+}

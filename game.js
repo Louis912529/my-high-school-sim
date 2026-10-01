@@ -517,45 +517,6 @@ function journal(line) {
   el.scrollTop = el.scrollHeight;
 }
 
-/* ================================================================
-   慢速平滑滚动：自己控制速度，不用浏览器的 behavior: 'smooth'。
-   默认速度 220 像素/秒，能看清文字。想更慢改小，想更快改大。
-   同时会等滚动结束后再回调 onDone。
-   ================================================================ */
-const SLOW_SCROLL_SPEED = 220;   // 像素/秒
-
-function slowScrollToBottom(el, onDone) {
-  if (!el) { if (onDone) onDone(); return; }
-  const start = el.scrollTop;
-  const target = Math.max(0, el.scrollHeight - el.clientHeight);
-  const distance = target - start;
-
-  // 已经很接近底部了，直接到位
-  if (Math.abs(distance) < 3) {
-    el.scrollTop = target;
-    if (onDone) onDone();
-    return;
-  }
-
-  // 距离越远，时长越长；速度固定 220 像素/秒
-  const duration = Math.max(240, (Math.abs(distance) / SLOW_SCROLL_SPEED) * 1000);
-  const startTime = performance.now();
-
-  function step(now) {
-    const t = Math.min(1, (now - startTime) / duration);
-    // easeInOutQuad 缓动：起步慢、中段快、收尾慢，视觉上最舒服
-    const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-    el.scrollTop = start + distance * eased;
-    if (t < 1) {
-      requestAnimationFrame(step);
-    } else {
-      el.scrollTop = target;
-      if (onDone) onDone();
-    }
-  }
-  requestAnimationFrame(step);
-}
-
 function logEvent(kind, title, body, fx, extraHtml, fxLabels) {
   const log = $('#log');
   const sem = SEM_NAMES[S ? S.semIdx : 0];
@@ -576,7 +537,6 @@ function logEvent(kind, title, body, fx, extraHtml, fxLabels) {
   // 新剧情追加到末尾，并滚动到底部看最新内容
   log.appendChild(div);
   // 慢速滚动到底部，速度由 SLOW_SCROLL_SPEED 控制
-  slowScrollToBottom(log);
   return div;
 }
 
@@ -1095,6 +1055,8 @@ function startSemester() {
 }
 
 $('#btn-sem-start').addEventListener('click', () => {
+  const log = $('#log');
+  if (log) log.innerHTML = '';
   show('#screen-game');
   renderHud();
   if (!S.logBooted) {
@@ -1108,6 +1070,11 @@ $('#btn-sem-start').addEventListener('click', () => {
     netBroadcast('开启在东莞中学的三年旅程', '🎒');
   }
   showMainChoices();
+  // 新学期开场：滚到最底部，让玩家从新学期第一条开始读
+  requestAnimationFrame(() => {
+    const log = $('#log');
+    if (log) log.scrollTop = log.scrollHeight;
+  });
 });
 
 /* ---------------- 新游戏 ---------------- */
@@ -1362,30 +1329,9 @@ function gateChoices(area) {
   choices.parentNode.insertBefore(btn, choices);
 }
 
-/* ================================================================
-   继续按钮：每次事件处理完后，显示一个按钮，玩家点击才继续队列。
-   避免一次性把多张事件卡全部刷到日志里，玩家来不及看。
-   ================================================================ */
-/* ================================================================
-   自动推进：不再用"继续"按钮，改成延迟一段时间自动往下播。
-   节奏：选择 → 停顿 → 剧情 → 停顿 → 下一个选项
-   ================================================================ */
-const AUTO_ADVANCE_DELAY = 1000;   // 每步停顿毫秒数（约等于原来 800ms 的 3 倍）
-
-function scheduleNext(onContinue) {
-  setTimeout(onContinue, AUTO_ADVANCE_DELAY);
-}
-
-function scrollLogToEnd() {
-  const log = $('#log');
-  const actionArea = $('#action-area');
-  if (actionArea) actionArea.scrollTop = 0;
-  slowScrollToBottom(log);
-}
-
 function showMainChoices() {
   awaitingChoice = true;
-  const area = $('#action-area');
+  const log = $('#log');
   const hint = `${SEM_NAMES[S.semIdx]} · ${dateLabel(S.round)}　｜　这个月的重心？`;
   const effects = {
     sleep: mainEffects('sleep'),
@@ -1393,60 +1339,58 @@ function showMainChoices() {
     study: mainEffects('study'),
   };
 
-  // 每轮随机抽 1 个特选，和基础三个选项并列
   const special = pick(MONTHLY_SPECIALS);
   const streakHint = (act) => {
     const s = S[act + 'Streak'] || 0;
     return s >= 2 ? `<span style="color:#b04a3c;font-size:10px">连续${s + 1}次·收益递减</span>` : '';
   };
 
-  area.innerHTML = `
-    <div class="choice-module current-choice-module">
-      <div class="module-kicker">月度安排 · 第 ${Math.ceil(S.round / 2)} 次 · ${DIFFICULTY.label}</div>
-      <div class="module-context">${hint}　把时间交给哪一件事？</div>
-      <div class="choices" id="main-choices">
-        <button class="choice-btn" data-act="sleep">
-          <div class="c-top"><span class="choice-key a">😴</span><span class="choice-label">睡眠优先</span>${streakHint('sleep')}</div>
-          <div class="fx-row"><span class="fx-pill sleep">睡眠 ${signed(effects.sleep.sleep)}</span><span class="fx-pill social">社交 ${signed(effects.sleep.social)}</span><span class="fx-pill study">学习 ${signed(effects.sleep.study)}</span></div>
-        </button>
-        <button class="choice-btn" data-act="social">
-          <div class="c-top"><span class="choice-key b">🎉</span><span class="choice-label">社交优先</span>${streakHint('social')}</div>
-          <div class="fx-row"><span class="fx-pill social">社交 ${signed(effects.social.social)}</span><span class="fx-pill sleep">睡眠 ${signed(effects.social.sleep)}</span><span class="fx-pill study">学习 ${signed(effects.social.study)}</span></div>
-        </button>
-        <button class="choice-btn" data-act="study">
-          <div class="c-top"><span class="choice-key c">📚</span><span class="choice-label">学习优先</span>${streakHint('study')}</div>
-          <div class="fx-row"><span class="fx-pill study">学习 ${signed(effects.study.study)}</span><span class="fx-pill sleep">睡眠 ${signed(effects.study.sleep)}</span><span class="fx-pill social">社交 ${signed(effects.study.social)}</span></div>
-        </button>
-        <button class="choice-btn" data-act="special" data-special-key="${special.key}">
-          <div class="c-top"><span class="choice-key d">${special.emoji}</span><span class="choice-label">${special.label}</span></div>
-          <div class="fx-row">
-            ${typeof special.fx.sleep === 'number' ? `<span class="fx-pill ${special.fx.sleep >= 0 ? 'sleep' : 'neg'}">睡眠 ${signed(special.fx.sleep)}</span>` : ''}
-            ${typeof special.fx.social === 'number' ? `<span class="fx-pill ${special.fx.social >= 0 ? 'social' : 'neg'}">社交 ${signed(special.fx.social)}</span>` : ''}
-            ${typeof special.fx.study === 'number' ? `<span class="fx-pill ${special.fx.study >= 0 ? 'study' : 'neg'}">学习 ${signed(special.fx.study)}</span>` : ''}
-          </div>
-        </button>
-      </div>
+  const choicesDiv = document.createElement('div');
+  choicesDiv.className = 'choice-module current-choice-module inline-choice-module';
+  choicesDiv.innerHTML = `
+    <div class="module-kicker">月度安排 · 第 ${Math.ceil(S.round / 2)} 次 · ${DIFFICULTY.label}</div>
+    <div class="module-context">${hint}　把时间交给哪一件事？</div>
+    <div class="choices">
+      <button class="choice-btn" data-act="sleep">
+        <div class="c-top"><span class="choice-key a">😴</span><span class="choice-label">睡眠优先</span>${streakHint('sleep')}</div>
+        <div class="fx-row"><span class="fx-pill sleep">睡眠 ${signed(effects.sleep.sleep)}</span><span class="fx-pill social">社交 ${signed(effects.sleep.social)}</span><span class="fx-pill study">学习 ${signed(effects.sleep.study)}</span></div>
+      </button>
+      <button class="choice-btn" data-act="social">
+        <div class="c-top"><span class="choice-key b">🎉</span><span class="choice-label">社交优先</span>${streakHint('social')}</div>
+        <div class="fx-row"><span class="fx-pill social">社交 ${signed(effects.social.social)}</span><span class="fx-pill sleep">睡眠 ${signed(effects.social.sleep)}</span><span class="fx-pill study">学习 ${signed(effects.social.study)}</span></div>
+      </button>
+      <button class="choice-btn" data-act="study">
+        <div class="c-top"><span class="choice-key c">📚</span><span class="choice-label">学习优先</span>${streakHint('study')}</div>
+        <div class="fx-row"><span class="fx-pill study">学习 ${signed(effects.study.study)}</span><span class="fx-pill sleep">睡眠 ${signed(effects.study.sleep)}</span><span class="fx-pill social">社交 ${signed(effects.study.social)}</span></div>
+      </button>
+      <button class="choice-btn" data-act="special">
+        <div class="c-top"><span class="choice-key d">${special.emoji}</span><span class="choice-label">${special.label}</span></div>
+        <div class="fx-row">
+          ${typeof special.fx.sleep === 'number' ? `<span class="fx-pill ${special.fx.sleep >= 0 ? 'sleep' : 'neg'}">睡眠 ${signed(special.fx.sleep)}</span>` : ''}
+          ${typeof special.fx.social === 'number' ? `<span class="fx-pill ${special.fx.social >= 0 ? 'social' : 'neg'}">社交 ${signed(special.fx.social)}</span>` : ''}
+          ${typeof special.fx.study === 'number' ? `<span class="fx-pill ${special.fx.study >= 0 ? 'study' : 'neg'}">学习 ${signed(special.fx.study)}</span>` : ''}
+        </div>
+      </button>
     </div>`;
-  gateChoices(area);
-  area.querySelectorAll('.choice-btn').forEach((b) => {
+  log.appendChild(choicesDiv);
+
+  choicesDiv.querySelectorAll('.choice-btn').forEach((b) => {
     b.onclick = () => {
-      // 防止连点：立即禁用所有按钮并清空选项区
       if (b.dataset.clicked === '1') return;
-      area.querySelectorAll('.choice-btn').forEach((x) => {
+      choicesDiv.querySelectorAll('.choice-btn').forEach((x) => {
         x.dataset.clicked = '1';
         x.disabled = true;
         x.style.pointerEvents = 'none';
       });
-      area.innerHTML = '';
+      choicesDiv.innerHTML = `<div class="module-kicker">月度安排</div><div class="choice-made">✅ 你的选择：${b.querySelector('.choice-label').textContent}</div>`;
+      choicesDiv.classList.add('choice-made-module');
 
       const act = b.dataset.act;
       if (act === 'special') {
-        // 特选的处理：直接结算，不走 chooseMain 的连击逻辑
         awaitingChoice = false;
         applyFx(special.fx);
         logEvent('event', `${special.emoji} ${special.label}`, special.body, special.fx);
         journal(`· ${special.label}`);
-        // 更新连击计数：选特选会重置所有主选项的连击
         ['sleep', 'social', 'study'].forEach(k => S[k + 'Streak'] = 0);
         buildEventQueue();
         processQueue();
@@ -1455,7 +1399,6 @@ function showMainChoices() {
       }
     };
   });
-  scrollLogToEnd();
 }
 
 function chooseMain(act) {
@@ -1737,16 +1680,13 @@ function processQueue() {
       logEvent(sc.kind || 'event', sc.title, sc.body, sc.fx);
       if (sc.journal) journal(sc.journal);
       if (sc.onPick) sc.onPick();
-      // 停顿后自动播下一条
-      scheduleNext(() => processQueue());
-      return;
+      // 一次性全部 append，不等待，遇到 choice 才停
+      continue;
     }
     if (sc.t === 'exam') {
       QUEUE.shift();
       doExam();
-      // 停顿后自动播下一条
-      scheduleNext(() => processQueue());
-      return;
+      continue;
     }
     if (sc.t === 'choice') {
       renderEventChoice(sc);
@@ -1758,47 +1698,57 @@ function processQueue() {
 }
 
 function renderEventChoice(sc) {
+  const log = $('#log');
+
+  // intro 作为事件卡 append 到 log
   if (sc.intro && !sc.introShown) {
     sc.introShown = true;
-    const intro = sc.intro;
-    logEvent(intro.kind || 'event', intro.title, intro.body, intro.fx || null);
+    logEvent(sc.intro.kind || 'event', sc.intro.title, sc.intro.body, sc.intro.fx || null);
   }
 
   awaitingChoice = true;
-  const area = $('#action-area');
+
+  // 选项卡片直接 append 到 log
   const keys = ['a', 'b', 'c', 'd', 'a', 'b'];
-  area.innerHTML = `
-    <div class="choice-module ${sc.moduleClass || 'event-choice-module'}">
-      <div class="module-kicker">${sc.kicker || '剧情选择'}</div>
-      <div class="module-context">${sc.hint || '该选择可能会影响后面的生活。'}</div>
-      <div class="choices" id="event-choices">
-        ${sc.options.map((o, i) => `
-          <button class="choice-btn" data-i="${i}">
-            <div class="c-top">
-              <span class="choice-key ${keys[i] || 'a'}">${String.fromCharCode(65 + i)}</span>
-              <span class="choice-label">${o.label}</span>
-            </div>
-            ${o.chanceLabel ? `<div class="choice-odds">${o.chanceLabel}</div>` : ''}
-            ${o.riskHint ? `<div class="choice-hint">${o.riskHint}</div>` : ''}
-            ${fxPills(o.previewFx || o.fx, o.fxLabels)}
-          </button>`).join('')}
-      </div>
+  const choicesDiv = document.createElement('div');
+  choicesDiv.className = 'choice-module inline-choice-module';
+  choicesDiv.innerHTML = `
+    <div class="module-kicker">${sc.kicker || '剧情选择'}</div>
+    <div class="module-context">${sc.hint || '该选择可能会影响后面的生活。'}</div>
+    <div class="choices">
+      ${sc.options.map((o, i) => `
+        <button class="choice-btn" data-i="${i}">
+          <div class="c-top">
+            <span class="choice-key ${keys[i] || 'a'}">${String.fromCharCode(65 + i)}</span>
+            <span class="choice-label">${o.label}</span>
+          </div>
+          ${o.chanceLabel ? `<div class="choice-odds">${o.chanceLabel}</div>` : ''}
+          ${o.riskHint ? `<div class="choice-hint">${o.riskHint}</div>` : ''}
+          ${fxPills(o.previewFx || o.fx, o.fxLabels)}
+        </button>`).join('')}
     </div>`;
-  gateChoices(area);
-  area.querySelectorAll('.choice-btn').forEach((btn) => {
+  log.appendChild(choicesDiv);
+
+  choicesDiv.querySelectorAll('.choice-btn').forEach((btn) => {
     btn.onclick = () => {
-      // 防止连点：立即禁用所有按钮并清空选项区
       if (btn.dataset.clicked === '1') return;
-      area.querySelectorAll('.choice-btn').forEach((b) => {
+      choicesDiv.querySelectorAll('.choice-btn').forEach((b) => {
         b.dataset.clicked = '1';
         b.disabled = true;
         b.style.pointerEvents = 'none';
       });
-      area.innerHTML = '';
+
       const opt = sc.options[+btn.dataset.i];
       const result = opt.resolve ? opt.resolve() : opt;
       QUEUE.shift();
       awaitingChoice = false;
+
+      // 把选项区替换为"你的选择：XXX"一行提示，保留在 log 里
+      choicesDiv.innerHTML = `
+        <div class="module-kicker">${sc.kicker || '剧情选择'}</div>
+        <div class="choice-made">✅ 你的选择：${opt.label}</div>`;
+      choicesDiv.classList.add('choice-made-module');
+
       applyFx(result.fx);
       if (result.kind || result.title) {
         logEvent(result.kind || 'event', result.title || result.label, result.text || '', result.fx, result.resultHtml || '', result.fxLabels || opt.fxLabels);
@@ -1807,21 +1757,17 @@ function renderEventChoice(sc) {
       if (result.onPick) result.onPick();
       if (sc.onResolve) sc.onResolve();
       checkTitles();
-      // 对话链：如果当前选项返回了 next，插到队列最前面，
-      // 玩家马上进入下一轮对话，而不是被别的校园事件打断。
+
+      // 对话链
       if (result.next) {
         const nextEvent = typeof result.next === 'function' ? result.next() : result.next;
         if (nextEvent) QUEUE.unshift(nextEvent);
       }
-      // 不再自动处理队列，而是先显示"继续"按钮，让玩家看完结果卡
-            // 先让日志平滑滚动显示结果卡，延迟 800ms 再显示"继续"按钮
-      setTimeout(() => {
-      // 先让结果卡显示出来，停顿后自动播下一条
-      scheduleNext(() => processQueue());
-      }, 800);
+
+      // 继续处理队列
+      processQueue();
     };
   });
-  scrollLogToEnd();
 }
 
 /* ---------------- 校园事件池 ---------------- */
@@ -1902,12 +1848,14 @@ const CAMPUS_EVENTS = [
     build: () => ({
       title: '运动计划',
       body: '今天你想去运动一下。',
-      options: [
-        { label: '去操场跑步', fx: { social: 3, sleep: 2 }, text: '...', kind: 'event',
-          onPick: () => { tryInjure('sport', 0.18); } },
-        { label: '去体育馆打羽毛球', fx: { study: 2, social: 1 }, text: '...', kind: 'good',
-          onPick: () => { tryInjure('sport', 0.22); } },
-      ],
+      options: shuffle(SPORT_OPTIONS).slice(0, 3).map((o) => ({
+        label: o.label,
+        fx: o.fx,
+        text: o.text,
+        kind: o.kind || 'event',
+        journal: o.journal,
+        onPick: () => { tryInjure('sport', 0.18); },
+      })),
     }),
   },
   {
@@ -2552,14 +2500,44 @@ const WEEKEND_OPTIONS = [
 ];
 
 /* 运动池：每次从里面随机抽 3 个 */
+/* 运动池：每次从里面随机抽 3 个 */
 const SPORT_OPTIONS = [
-  { label: '去操场跑步', fx: { social: 3, sleep: 2 }, text: '你沿着跑道慢跑，遇到同学打招呼，你轻轻挥手回应，跑道周围，有拉伸、跳绳、打八段锦的同学，有一个同学在面对着墙深蹲，你不知道他为什么要把鼻子也贴在墙上，一个同学在练引体向上，手臂弯到90度，再不能上去分毫，有老师和同学吃完饭了，正慢慢从食堂走回教室，你只是跑，不知道跑了多少圈，直到天色渐暗，月亮已经在黄昏的天空露出一角，你才慢慢停下，拉伸，吃饭，洗澡。', kind: 'event' },
-  { label: '去体育馆打羽毛球', fx: { study: 2, social: 1 }, text: '你用最快的速度冲到体育馆三楼，抢到了最好的场，打了好几场酣畅淋漓的单打，汗水湿透了上衣和短裤，你精疲力竭，差点连回宿舍洗澡的力气都没有。', kind: 'good' },
-  { label: '去游泳馆游泳', fx: { social: 1, sleep: 3, study: 1 }, text: '你交替着游了几圈自由泳和蛙泳，每次划手打腿，水都会回应你，你喜欢这种感觉，在水里，你不用想其他事情，只需用力和前进。', kind: 'event' },
-  { label: '打排球', fx: { social: 5, sleep: 2 }, text: '你抡圆胳膊使劲发了一个球，排球飞过网，在距离边线5厘米处落地，你得分了，伙伴都为你欢呼。', kind: 'event' },
-  { label: '打篮球', fx: { social: 5, sleep: 2 }, text: '一个高大的同学差点把你顶飞，你抓住机会抢到篮板，带球，然后一个漂亮的三分，球进了，这是你投进的第一个三分球，大家都为你鼓掌。', kind: 'event' },
-  { label: '去踢足球', fx: { social: 5, sleep: 2 }, text: '放学后的足球场总是有同学在踢球，你数了数，刚好缺一个人，于是顺利地加入其中，你脚感不错，几十分钟下来虽然没进球，却贡献了几个漂亮的助攻。', kind: 'event' },
-  { label: '去打乒乓球', fx: { social: 2, sleep: 2 }, text: '你拿上球拍来到负一楼，刚走下楼梯，就听见密集的碰撞声，你赶忙加快两步，搜索着空桌，找到一个，虽然网不是很好，但也能打，你和伙伴打满11球战平，进入激动人心的加球，欢呼声和叹息声交错，最终你以22比20险胜。', kind: 'event' },
+  { label: '去操场跑步', fx: { social: 3, sleep: 2 }, title: '🏃 操场跑步',
+    text: '你沿着跑道慢跑，遇到同学打招呼，你轻轻挥手回应。跑道周围有拉伸的、跳绳的、打八段锦的，还有一个同学面对着墙深蹲，你不知道他为什么把鼻子也贴在墙上。跑到天色渐暗，月亮已经在黄昏的天空露出一角，你才慢慢停下。',
+    kind: 'event', journal: '· 运动：操场跑步' },
+  { label: '去体育馆打羽毛球', fx: { study: 2, social: 1 }, title: '🏸 打羽毛球',
+    text: '你用最快的速度冲到体育馆三楼，抢到了最好的场。打了好几场酣畅淋漓的单打，汗水湿透了上衣和短裤。最后精疲力竭，差点连回宿舍洗澡的力气都没有。',
+    kind: 'good', journal: '· 运动：打羽毛球' },
+  { label: '去游泳馆游泳', fx: { social: 1, sleep: 3, study: 1 }, title: '🏊 游泳',
+    text: '你交替着游了几圈自由泳和蛙泳。每次划手打腿，水都会回应你。你喜欢这种感觉——在水里，你不用想其他事情，只需用力和前进。',
+    kind: 'event', journal: '· 运动：游泳' },
+  { label: '打排球', fx: { social: 5, sleep: 2 }, title: '🏐 排球',
+    text: '你抡圆胳膊使劲发了一个球，排球飞过网，在距离边线 5 厘米处落地，你得分了，伙伴都为你欢呼。',
+    kind: 'event', journal: '· 运动：打排球' },
+  { label: '打篮球', fx: { social: 5, sleep: 2 }, title: '🏀 篮球',
+    text: '一个高大的同学差点把你顶飞，你抓住机会抢到篮板，带球，然后一个漂亮的三分，球进了——这是你投进的第一个三分球，大家都为你鼓掌。',
+    kind: 'event', journal: '· 运动：打篮球' },
+  { label: '去踢足球', fx: { social: 5, sleep: 2 }, title: '⚽ 足球',
+    text: '放学后的足球场总是有同学在踢球，你数了数，刚好缺一个人，于是顺利地加入其中。你脚感不错，几十分钟下来虽然没进球，却贡献了几个漂亮的助攻。',
+    kind: 'event', journal: '· 运动：踢足球' },
+  { label: '去打乒乓球', fx: { social: 2, sleep: 2 }, title: '🏓 乒乓球',
+    text: '你拿上球拍来到负一楼，刚走下楼梯，就听见密集的碰撞声。你和伙伴打满 11 球战平，进入激动人心的加球，欢呼声和叹息声交错，最终你以 22 比 20 险胜。',
+    kind: 'event', journal: '· 运动：打乒乓球' },
+  { label: '去操场做引体向上', fx: { sleep: 1, study: 1 }, title: '💪 引体向上',
+    text: '你在单杠下站了两分钟，做了七个引体向上。第七个到一半就没劲了，但你还是撑上去了。手掌磨出了两个浅浅的茧。',
+    kind: 'event', journal: '· 运动：引体向上' },
+  { label: '去打网球', fx: { social: 3, sleep: 2 }, title: '🎾 网球',
+    text: '球场的对面是隔壁班的同学。你们打了两局，你一胜一负。挥拍的时候，风从耳边过，很畅快。',
+    kind: 'event', journal: '· 运动：打网球' },
+  { label: '去操场看同学踢球', fx: { social: 3, sleep: 1, study: -1 }, title: '👀 看球',
+    text: '你坐在看台上看了一场班级之间的比赛。有人摔倒了，又爬起来继续跑。你忽然有点想下场，但最后还是坐着看完了。',
+    kind: 'event', journal: '· 运动：看球' },
+  { label: '去跑一千米', fx: { sleep: 3, study: -1 }, title: '🏃 一千米',
+    text: '你用了四分四十秒。跑完之后靠在栏杆上喘气，汗顺着下巴往下滴。第二天腿会酸，但今天很痛快。',
+    kind: 'event', journal: '· 运动：一千米' },
+  { label: '去操场跳绳', fx: { sleep: 2, study: 1 }, title: '🪢 跳绳',
+    text: '你连续跳了两百多个，中间断了一次。停下来的时候腿有点软，但是心里很清爽。',
+    kind: 'event', journal: '· 运动：跳绳' },
 ];
 
 /* 课间池：每次从里面随机抽 4 个 */

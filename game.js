@@ -385,23 +385,6 @@ function chancePercent(p) { return Math.round(p * 100); }
 
 function signed(v) { return v > 0 ? `+${v}` : `${v}`; }
 
-// 选科 × 性别的适配度：女生学物理、男生学历史，同样的努力收益更低。
-function trackStudyPenalty() {
-  const track = (S && S.track) || CFG.track;
-  if (!track) return 0;
-  if (CFG.gender === '女' && track === '物理') return 3;
-  if (CFG.gender === '男' && track === '历史') return 3;
-  return 0;
-}
-
-function trackStudyPenaltyLabel() {
-  const track = (S && S.track) || CFG.track;
-  if (!track) return '';
-  if (CFG.gender === '女' && track === '物理') return '女生学物理：学习收益 -1';
-  if (CFG.gender === '男' && track === '历史') return '男生学历史：学习收益 -1';
-  return '';
-}
-
 /* ---------------- 受伤系统 ----------------
 运动 / 意外后有概率受伤，体力上限锁死在 90，
 两个学期之后每次学期切换恢复 10 点，直到回到 100。 */
@@ -468,17 +451,10 @@ function mainEffects(act) {
     return { sleep: 1, social: Math.round((7 - level) * mul), study: -2 };
   }
 
-  // 学习收益：基础 + 选科适配度 + 班级特长
+    // 学习收益：基础 + 班级特长
   let studyBonus = 0;
-  // 选科 × 性别适配度
-  if (CFG.gender === '女' && S && S.track === '物理') studyBonus -= 3;
-  if (CFG.gender === '男' && S && S.track === '历史') studyBonus -= 3;
   // 班级特长：镜堂班 + 物理、容庚班 + 历史 有学习增益
   if (CFG.className === '镜堂班' && S && S.track === '物理') studyBonus += 1;
-  if (CFG.className === '容庚班' && S && S.track === '历史') studyBonus += 1;
-  // 普通班师资分散，学习收益更低
-  if (CFG.className === '普通班') studyBonus -= 1;
-
   const studyGain = Math.max(1, Math.round((7 - level + studyBonus) * mul));
   return { sleep: -(5 + level), social: -(3 + level), study: studyGain };
 }
@@ -946,12 +922,9 @@ if ($('#in-diff')) {
   refreshDifficultyNote();
 }
 
-// 选科适配度提示：女生学物理 / 男生学历史，学习收益会打折。
 function trackAptitudeNote(track) {
   const t = track || (S && S.track) || CFG.track || '物理';
   const parts = [];
-  if (CFG.gender === '女' && t === '物理') parts.push('⚠ 女生学物理：学习收益 -3');
-  if (CFG.gender === '男' && t === '历史') parts.push('⚠ 男生学历史：学习收益 -3');
   if (CFG.className === '镜堂班' && t === '物理') parts.push('✓ 镜堂班 + 物理：学习收益 +2');
   if (CFG.className === '容庚班' && t === '历史') parts.push('✓ 容庚班 + 历史：学习收益 +2');
   if (CFG.className === '普通班') parts.push('加油╭(･ㅂ･)و！！');
@@ -1391,7 +1364,6 @@ function showMainChoices() {
         <button class="choice-btn" data-act="study">
           <div class="c-top"><span class="choice-key c">📚</span><span class="choice-label">学习优先</span>${streakHint('study')}</div>
           <div class="fx-row"><span class="fx-pill study">学习 ${signed(effects.study.study)}</span><span class="fx-pill sleep">睡眠 ${signed(effects.study.sleep)}</span><span class="fx-pill social">社交 ${signed(effects.study.social)}</span></div>
-          ${trackStudyPenaltyLabel() ? `<div class="choice-hint">${trackStudyPenaltyLabel()}</div>` : ''}
         </button>
         <button class="choice-btn" data-act="special" data-special-key="${special.key}">
           <div class="c-top"><span class="choice-key d">${special.emoji}</span><span class="choice-label">${special.label}</span></div>
@@ -2918,11 +2890,98 @@ function advanceDailySlot() {
   S.dailyIdx = picked;
 }
 
+/* ================================================================
+   毕业旅行 · 高考结束后
+   志愿填报事件已触发（volunteerSeen）时，日常选项整体切换为旅行。
+   ================================================================ */
+const TRAVEL_DESTINATIONS = [
+  {
+    label: '去厦门看海',
+    fx: { sleep: 4, social: 6, study: -2 },
+    title: '🌊 厦门',
+    text: '沿着环岛路骑车，海风咸咸的。你在沙滩上坐了很久，什么都没想。\n\n晚上和同行的同学吃了大排档，第二天醒来发现已经不记得昨夜的细节。',
+    journal: '· 毕业旅行：厦门',
+  },
+  {
+    label: '去西安看兵马俑',
+    fx: { sleep: 3, social: 5, study: 3 },
+    title: '🏛️ 西安',
+    text: '兵马俑坑比课本上的照片大得多。你站在一号坑边上，看着两千年前的士兵排成一列。\n\n回程路上，导游讲了半路的历史，你居然一句都没觉得无聊。',
+    journal: '· 毕业旅行：西安',
+  },
+  {
+    label: '去上海逛外滩',
+    fx: { sleep: 3, social: 6, study: -1 },
+    title: '🌃 上海',
+    text: '外滩的灯亮到半夜，对岸的东方明珠一闪一闪。你和同学靠着栏杆站了很久。\n\n第二天早上，你们在南京路上吃了生煎，然后各自赶不同的返程车。',
+    journal: '· 毕业旅行：上海',
+  },
+  {
+    label: '去成都吃火锅',
+    fx: { sleep: 2, social: 7, study: -3 },
+    title: '🍲 成都',
+    text: '半夜十一点还在吃火锅，辣得眼泪直流，但谁都不肯停。\n\n第二天去了熊猫基地，看着那些动物躺着打滚，觉得几个月来第一次不用想任何事。',
+    journal: '· 毕业旅行：成都',
+  },
+  {
+    label: '去北京看故宫',
+    fx: { sleep: 3, social: 5, study: 4 },
+    title: '🏯 北京',
+    text: '故宫比想象中大得多，走了六个小时也只逛了一半。\n\n从午门出来的时候，夕阳把琉璃瓦照得发亮。你在景山公园的山顶坐了很久，看着底下的整片红墙。',
+    journal: '· 毕业旅行：北京',
+  },
+  {
+    label: '去云南看洱海',
+    fx: { sleep: 5, social: 5, study: -1 },
+    title: '🏔️ 云南',
+    text: '洱海的水比照片里更蓝。你租了一辆电动车，沿着环海路慢慢骑。\n\n在双廊的一家咖啡馆坐了一下午，看着湖对面的大山发呆。没人催你写作业，也没人问你考得怎么样。',
+    journal: '· 毕业旅行：云南',
+  },
+  {
+    label: '去香港逛铜锣湾',
+    fx: { sleep: 2, social: 6, study: -2 },
+    title: '🌆 香港',
+    text: '维港的风很大，天星小轮在两岸来回穿梭。你在诚品书店逛了很久，最后只买了一本很轻的散文。\n\n晚上去庙街吃夜宵，老板问你们是不是刚高考完，说「年轻人，接下来就自由啦」。',
+    journal: '· 毕业旅行：香港',
+  },
+  {
+    label: '哪都不去，在家躺一个暑假',
+    fx: { sleep: 8, social: -3, study: -5 },
+    title: '🛋️ 家',
+    text: '你选择了在家躺平。前几天睡到中午，起来刷手机，晚上追剧到两三点。\n\n半个月后，你开始觉得这种生活其实也没那么香，但又不想动。',
+    journal: '· 毕业旅行：在家躺平',
+  },
+];
+
 function buildDailyEvent() {
   if (!S) return null;
+
+  // 高考结束后，日常选项整体换成毕业旅行
+  if (S.flags && S.flags.volunteerSeen) {
+    const options = shuffle(TRAVEL_DESTINATIONS).slice(0, 4).map((d) => ({
+      label: d.label,
+      fx: d.fx,
+      kind: 'daily',
+      title: d.title,
+      text: d.text,
+      journal: d.journal,
+    }));
+    return {
+      t: 'choice',
+      kicker: '✈️ 毕业旅行',
+      hint: '高考结束了，终于有时间出去玩。',
+      moduleClass: 'daily-choice-module',
+      intro: {
+        kind: 'daily',
+        title: '✈️ 毕业旅行',
+        body: '成绩还没出来。几个月的紧绷突然松开，你想去哪走走？',
+      },
+      options,
+    };
+  }
+
   const slot = DAILY_SLOTS[dailySlotIndex()];
   advanceDailySlot();
-
   // 每个时段都从对应的池子里随机抽 4 个；morning / evening 用固定的 4 个选项
   let rawOptions;
   if (slot.key === 'break') rawOptions = shuffle(BREAK_OPTIONS).slice(0, 4);

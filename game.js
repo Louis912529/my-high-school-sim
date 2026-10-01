@@ -149,7 +149,7 @@ function buildOpenDayEvent() {
     },
     {
       month: '3月', flag: 'openDayMarSeen', title: '🌱 三月学校开放日',
-      body: '春天的树影铺满操场，学校又迎来一批来访的家长和学弟学妹。社团摊位、实验室和图书馆都比平时热闹。',
+      body: '春天的树影铺满操场，学校又迎来一批来访的家长和学弟学妹。教学楼和体育馆都很热闹。',
       fx: { social: 4, study: 1, sleep: -1 }, journal: '· 3月学校开放日',
     },
     {
@@ -1764,7 +1764,7 @@ const FOOD_OPTIONS = [
   { label: '生地骨头汤', fx: { social: 1, sleep: 2 }, text: '你喝一口养生汤，味道略微有点苦，但很好喝，你觉得自己已经成为了一个标准的广东人。', kind: 'good', journal: '· 饭堂：养生汤', onPick: () => collectFood('饭堂·养生汤') },
   { label: '番茄炒蛋', fx: { social: 3, study: 1 }, text: '你从小就喜欢吃番茄炒蛋，喜欢这咸甜的味道，食堂的番茄炒蛋虽然没有妈妈做的好吃，但味道已经很不错了。', kind: 'good', journal: '· 饭堂：番茄炒蛋', onPick: () => collectFood('饭堂·番茄炒蛋') },
   { label: '梅菜蒸肉饼', fx: { social: 1, sleep: -1 }, text: '你在家里很少吃到肉饼，爸爸做的肉饼有点柴，没什么味道，相比之下，食堂的肉饼就很好吃。', kind: 'good', journal: '· 饭堂：肉饼', onPick: () => collectFood('饭堂·肉饼') },
-  { label: '青椒炒回锅肉', fx: { social: 2, study: -1 }, text: '你感觉这是你在学校吃过最香的菜，青椒和肉都很下饭，香气四溢的回锅肉正好犒劳学累了的自己。', kind: 'good', journal: '· 饭堂：回锅肉', onPick: () => collectFood('饭堂·回锅肉') },
+  { label: '青椒炒回锅肉', fx: { social: 2, study: -1 }, text: '你感觉这是你在学校吃过最香的菜，青椒和肉都很下饭，香气四溢的回锅肉正好犒劳疲惫的自己。', kind: 'good', journal: '· 饭堂：回锅肉', onPick: () => collectFood('饭堂·回锅肉') },
   { label: '蒜蓉粉丝蒸龙利鱼', fx: { social: 1, study: 2 }, text: '你咬了一口鱼，感觉美味得不真实，鱼肉鲜嫩可口，还没有鱼刺，搭配蒜蓉粉丝，可以下一大勺饭。', kind: 'good', journal: '· 饭堂：蒜蓉粉丝蒸龙利鱼', onPick: () => collectFood('饭堂·蒜蓉粉丝蒸龙利鱼') },
   { label: '萝卜焖牛腩', fx: { social: 1, sleep: 1, study: 1 }, text: '牛肉和萝卜都炖得很烂，像家里的味道，每次炖牛肉，香味能从厨房飘到卧室。', kind: 'good', journal: '· 饭堂：炖牛肉', onPick: () => collectFood('饭堂·炖牛肉') },
   { label: '酸菜鱼', fx: { social: 1, sleep: 2, study: -1 }, text: '十几片鱼片铺在豆芽、青菜和酸菜上，你尝了一片，嫩滑美味，有的鱼片有小鱼刺，你吃得很小心。', kind: 'good', journal: '· 饭堂：酸菜鱼', onPick: () => collectFood('饭堂·酸菜鱼') },
@@ -1773,11 +1773,46 @@ const FOOD_OPTIONS = [
 /* 校外美食池：每次事件从里面随机抽 3 个 */
 const MEISHI_OPTIONS = [
   { label: '老鸭粉丝汤', fx: { social: 3, sleep: 1 }, text: '汤粉的热气先把人给哄好了，你吃完才发现，今天的坏心情已经没剩多少。', kind: 'good', journal: '· 校外：老鸭粉丝汤', onPick: () => collectFood('校外·老鸭粉丝汤') },
-  { label: '莞留香', fx: { social: 3, study: 1 }, text: '店里的味道稳稳当当，适合在一周被卷完之后认真吃一顿。', kind: 'good', journal: '· 校外：莞留香', onPick: () => collectFood('校外·莞留香') },
+  { label: '莞留香', fx: { social: 1, study: 1 }, text: '店里的味道稳稳当当，适合在一周被卷完之后认真吃一顿。', kind: 'good', journal: '· 校外：莞留香', onPick: () => collectFood('校外·莞留香') },
   { label: '鹅好味', fx: { social: 3, sleep: 1 }, text: '烧腊切开时还带着光。你决定下次再来，顺便把同桌也带上。', kind: 'good', journal: '· 校外：鹅好味', onPick: () => collectFood('校外·鹅好味') },
   { label: '品中品', fx: { social: 2, study: 1 }, text: '饭菜好吃，汤也可口。你用一顿饭把自己从考试周里捞了出来。', kind: 'good', journal: '· 校外：品中品', onPick: () => collectFood('校外·品中品') },
   { label: '鲜汇', fx: { social: 3, sleep: 1 }, text: '滑蛋牛肉饭和不用讨论成绩的时间，组成了一个很像假期的晚上。', kind: 'good', journal: '· 校外：鲜汇', onPick: () => collectFood('校外·鲜汇') },
+  { label: '杨国福', fx: { social: 3, sleep: 1 }, text: '学习的疲惫在一碗麻辣烫的冲击下一扫而光。', kind: 'good', journal: '· 校外：杨国福', onPick: () => collectFood('校外·杨国福') },
+  { label: '哈尔滨水饺', fx: { study: 2, sleep: 1 }, text: '你最喜欢吃韭菜馅的饺子，一口气吃了十几个。', kind: 'good', journal: '· 校外：哈尔滨水饺', onPick: () => collectFood('校外·哈尔滨水饺') },
+  { label: '陕西特色小吃', fx: { social: 2, sleep: 1 }, text: '肉夹馍的香气馋得你留口水，你咬了一大口，肉香在嘴中炸开。', kind: 'good', journal: '· 校外：陕西特色小吃', onPick: () => collectFood('校外·陕西特色小吃') },
+  { label: '麦当劳', fx: { social: 2, sleep: 2 }, text: '你要了一个牛肉堡，配了一个甜筒，虽然今天是星期四。', kind: 'good', journal: '· 校外：麦当劳', onPick: () => collectFood('校外·麦当劳') },
+  { label: '巴哥酸辣粉', fx: { social: 2, study: 1 }, text: '酸辣粉吃得你出汗，食堂里可没有这种味道。', kind: 'good', journal: '· 校外：酸辣粉', onPick: () => collectFood('校外·酸辣粉') },
+  { label: '武大郎烧饼', fx: { study: 2, sleep: 1 }, text: '好多同学在围着买烧饼，你是南方人，觉得烧饼的味道一般。', kind: 'good', journal: '· 校外：武大郎烧饼', onPick: () => collectFood('校外·武大郎烧饼') },
+  { label: '观扇', fx: { social: 2, sleep: -1 }, text: '这家店的奶茶你没喝过，尝了一下，感觉和1點點差不多。', kind: 'good', journal: '· 校外：鲜汇', onPick: () => collectFood('校外·鲜汇') },
+  { label: '贵阳花溪牛肉粉', fx: { social: 3, sleep: 1 }, text: '校外就是有许许多多的特色小吃，你换着吃，发誓要在三年内扫荡所有店铺。', kind: 'good', journal: '· 校外：观扇', onPick: () => collectFood('校外·观扇') },
+  { label: '增城肠粉皇', fx: { social: 1, sleep: 3 }, text: '肠粉皮很薄，很好吃，你喜欢加很多酱油，把肠粉都浸没。', kind: 'good', journal: '· 校外：增城肠粉皇', onPick: () => collectFood('校外·增城肠粉皇') },
 ];
+
+/* ================================================================
+   熄灯后的宿舍 · 按性别分池
+   男生池偏「打牌 / 游戏 / 串门」，女生池偏「聊天 / 护肤 / 追剧」。
+   每次从对应池子里抽 3 个。
+   ================================================================ */
+const DORM_NIGHT_BOYS = [
+  { label: '开一局狼人杀', fx: { social: 5, sleep: -4, study: -3 }, text: '预言家第一晚就被刀，狼人却因为笑得太大声暴露了。你们憋笑憋到肚子疼。', kind: 'event', journal: '· 宿舍狼人杀' },
+  { label: '摊开三国杀', fx: { social: 4, sleep: -3, study: -3 }, text: '有人抽到主公，有人摸到一手闪。牌面越来越乱，直到宿管的钥匙声从走廊尽头传来。', kind: 'event', journal: '· 宿舍三国杀' },
+  { label: '窜宿找人一起玩', fx: { social: 6, sleep: -5, study: -3 }, text: '你趁宿管不在的间隙溜到隔壁宿舍，几个人挤在门后继续聊天。夜里最快乐的事，往往都不在计划里。', kind: 'event', journal: '· 夜间窜宿' },
+  { label: '悄悄聊喜欢的人', fx: { social: 4, sleep: -3, study: -2 }, text: '你说自己喜欢上了隔壁班的一个女生，舍友纷纷出谋划策，要在明天制造一场偶遇。', kind: 'event', journal: '· 宿舍夜宵外卖' },
+  { label: '躲在被窝里看球赛', fx: { social: 3, sleep: -4, study: -3 }, text: '你和隔壁床的两个人挤在一部手机前看球。进球那一刻，三个人硬是把欢呼声压成了三声闷笑。', kind: 'event', journal: '· 宿舍看球' },
+  { label: '讨论国际政治', fx: { social: 6, sleep: -2, study: -2 }, text: '你们从二战聊到俄乌冲突，从美国大选聊到青瓦台，好像都是叱咤风云的政客。', kind: 'event', journal: '· 宿舍查寝同盟' },
+  { label: '听隔壁床讲他初中的事', fx: { social: 4, sleep: -2, study: -2 }, text: '他从初一讲到初三，讲到一半自己先笑出来。你听不懂笑点，但还是跟着笑了。', kind: 'event', journal: '· 宿舍夜谈' },
+];
+
+const DORM_NIGHT_GIRLS = [
+  { label: '开一场卧谈会', fx: { social: 5, sleep: -3, study: -2 }, text: '熄灯后话题从月考排名一路转到隔壁班谁喜欢谁。有人趴在床上笑，有人把被子拉过头顶。', kind: 'event', journal: '· 宿舍卧谈会' },
+  { label: '互相帮忙敷面膜', fx: { social: 4, sleep: -2, study: -2 }, text: '四张面膜在宿舍里同时亮起。有人边敷边背单词，有人一直在抱怨下巴长了痘。', kind: 'event', journal: '· 宿舍护肤' },
+  { label: '聊最近追的剧和明星', fx: { social: 5, sleep: -3, study: -2 }, text: '你分享了一个片段，结果整个宿舍开始各说各的。快一点的时候，还有人在讲主角的那句台词。', kind: 'event', journal: '· 宿舍追剧' },
+  { label: '互相扎头发 / 编辫子', fx: { social: 4, sleep: -2, study: -1 }, text: '有人给你编了个很复杂的辫子，你还没照过镜子就被熄灯了。第二天早读才在走廊窗户里看到。', kind: 'event', journal: '· 宿舍编发' },
+  { label: '分享各自带的零食', fx: { social: 5, sleep: -2, study: -2 }, text: '一包薯片从上铺传到下铺，再传回来的时候只剩下碎屑。有人还把家乡带来的小点心拿出来分。', kind: 'event', journal: '· 宿舍零食分享' },
+  { label: '悄悄聊喜欢的人', fx: { social: 5, sleep: -3, study: -2 }, text: '熄灯后话题慢慢变轻。有人只说了半句，剩下的全在被子里笑掉了。', kind: 'event', journal: '· 宿舍悄悄话' },
+  { label: '一起听歌，轮流切歌', fx: { social: 3, sleep: -3, study: -1 }, text: '耳机从一只手传到另一只手。最后切到一首谁都不想切走的歌，几个人默默听完了。', kind: 'event', journal: '· 宿舍听歌' },
+];
+
 const CAMPUS_EVENTS = [
   {
     t: 'choice',
@@ -1787,8 +1822,9 @@ const CAMPUS_EVENTS = [
       body: '你和同伴拿着球拍偷偷从教学楼的后面溜走。\n你刚伸出头，级长就刷新在你身边：「哪个班的？」',
       tag: '校园事件',
       options: [
-        { label: '硬着头皮报隔壁班', fx: { sleep: -1, social: 1 }, text: '你胡乱报了个数字。级长眯眼看了你三秒，居然挥手放行。返回教室的路上你心跳如鼓。', kind: 'event', journal: '· 偷偷去打球：报隔壁班过关' },
+        { label: '硬着头皮报隔壁班', fx: { sleep: -1, social: 1 ,study: -1}, text: '你胡乱报了个数字。级长眯眼看了你三秒，居然挥手放行。返回教室的路上你心跳如鼓。', kind: 'event', journal: '· 偷偷去打球：报隔壁班过关' },
         { label: '马上跑', fx: { social: 2, study: -1 }, text: '你头也不回，撒开脚步，和同伴一起冲向天桥。级长叹了口气：「这群孩子真管不住。」你成功躲避了级长的追捕，但这之后老师也抓得更严了。', kind: 'event', onPick: () => { tryInjure('fall', 0.3); }, journal: '· 偷偷去打球：跑路' },
+        { label: '老实报上班级', fx: { sleep: -1, social: 2}, text: '你诚实地报上了自己的班级。返回教室的路上你心跳如鼓,不知道级长会不会告诉班主任。', kind: 'event', journal: '· 偷偷去打球：老实回答' },
       ],
     }),
   },
@@ -1947,15 +1983,14 @@ const CAMPUS_EVENTS = [
   {
     t: 'choice',
     condition: () => isBoarder(),
-    build: () => ({
-      title: '熄灯后的宿舍',
-      body: `熄灯铃响了，宿舍里却没有一个人真的准备睡觉。大家把声音压低，开始高谈阔论。`,
-      options: [
-        { label: '开一局狼人杀', fx: { social: 5, sleep: -4, study: -3 }, text: '预言家第一晚就被刀，狼人却因为笑得太大声暴露了。你们憋笑憋到肚子疼。', kind: 'event', journal: '· 宿舍狼人杀' },
-        { label: '摊开三国杀', fx: { social: 4, sleep: -3, study: -3 }, text: '有人抽到主公，有人摸到一手闪。牌面越来越乱，直到巡楼脚步声从走廊尽头传来。', kind: 'event', journal: '· 宿舍三国杀' },
-        { label: '窜宿找人一起玩', fx: { social: 6, sleep: -5, study: -3 }, text: '你趁查寝间隙溜到隔壁宿舍，几个人挤在门后继续聊天。夜里最快乐的事，往往都不在计划里。', kind: 'event', journal: '· 夜间窜宿' },
-      ],
-    }),
+    build: () => {
+      const pool = CFG.gender === '男' ? DORM_NIGHT_BOYS : DORM_NIGHT_GIRLS;
+      return {
+        title: '熄灯后的宿舍',
+        body: `熄灯铃响了，宿舍里却没有一个人真的准备睡觉。大家把声音压低，开始高谈阔论。`,
+        options: shuffle(pool).slice(0, 3),
+      };
+    },
   },
   {
     t: 'choice',
@@ -2505,6 +2540,60 @@ const NIGHT_OPTIONS = [
   { label: '留在教室整理错题', fx: { sleep: 2, social: -1, study: 2 }, title: '🌙 整理错题', text: '晚修结束后距离教室断电还有几十分钟时间，同学陆续离开，你坐在座位上没有动，多用功一点，未来会更好吧，你这样想。', journal: '· 晚修后：整理错题' },
 ];
 
+/* 早读池：每次从里面随机抽 3 个 */
+const MORNING_OPTIONS = [
+  { label: '认真晨读背书', fx: { study: 1, sleep: -1 }, title: '🌤️ 晨读', text: '你把要背的段落拆成三小段，来回过了两遍。早读结束时，那几行字终于顺下来了。', journal: '· 早读：认真晨读' },
+  { label: '悄悄补昨晚没写完的作业', fx: { study: 1, sleep: -1 }, title: '🌤️ 补作业', text: '你把作业本压在语文书下面，一行一行往下抄。老师从后门走过的时候，你正好翻到下一页。', journal: '· 早读：补作业' },
+  { label: '趴在桌上补觉', fx: { sleep: 2, study: -1 }, resolve: () => (chance(0.25)
+    ? { fx: { sleep: 1, study: -1, social: -1 }, kind: 'daily', title: '🌤️ 被老师点名', text: '你刚把脸埋进胳膊，老师就站到了窗边。你被叫起来站到早读结束，睡意全没了。', journal: '· 早读补觉：被老师点名' }
+    : { fx: { sleep: 2, study: -1 }, kind: 'daily', title: '🌤️ 二十分钟回血', text: '你把书立起来挡住脸，二十分钟后满血复活。同桌帮你盯了两次老师。', journal: '· 早读：趴桌补觉' }) },
+  { label: '走廊和同学闲聊', fx: { social: 2, study: -1 }, title: '🌤️ 走廊闲话', text: '你们靠在栏杆上，从昨晚的球赛聊到隔壁班的八卦。早读铃响的时候谁都没背进一个字。', journal: '· 早读：走廊闲聊' },
+  { label: '去小卖部买早餐', fx: { sleep: 1, social: 1, study: -1 }, title: '🌤️ 买早餐', text: '你冲到小卖部，抢到了最后一个莞中大包。带回教室的时候，早读铃正好响。', journal: '· 早读：买早餐' },
+  { label: '抄同桌的英语作文', fx: { study: 1, sleep: -2 }, title: '🌤️ 抄作文', text: '你把同桌的作文摊在英语书下面，一行一行往下抄。中途改了两个句子，怕被发现。', journal: '· 早读：抄作业' },
+  { label: '在走廊上背政治', fx: { study: 2, social: -1, sleep: -1 }, title: '🌤️ 背政治', text: '你靠在走廊的窗边，把「主要矛盾」和「基本矛盾」来回背了三遍，终于分清楚了。', journal: '· 早读：背政治' },
+  { label: '看窗外发呆', fx: { sleep: 1, study: -1, social: -1 }, title: '🌤️ 发呆', text: '你看着操场上的树被风吹，什么都没想。早读铃响的时候才发现一页都没翻。', journal: '· 早读：发呆' },
+  { label: '和前排同学对昨天数学题', fx: { study: 1, social: 1, sleep: -1 }, title: '🌤️ 对题', text: '你们对到第三题就吵起来了，最后发现两个人都抄错了题干。', journal: '· 早读：对数学题' },
+  { label: '把今天的课程表抄到桌角', fx: { study: 1, sleep: -1, social: 1 }, title: '🌤️ 抄课表', text: '你把今天的课表抄在桌角的便利贴上。抄完之后，一天的节奏好像有了形状。', journal: '· 早读：抄课表' },
+];
+/* 晚修池：每次从里面随机抽 3 个 */
+const EVENING_OPTIONS = [
+  { label: '专心刷题、整理错题', fx: { study: 2, social: -1, sleep: -1 }, resolve: () => (chance(0.4)
+    ? { fx: {}, kind: 'daily', title: '✍️ 遇到难题，心态崩了', text: '第三道大题你算了四遍，答案一次都没对上。你把笔一扔，趴下去盯着桌角发呆。', journal: '· 晚修：心态崩了' }
+    : { fx: { study: 3, social: -1 }, kind: 'daily', title: '✍️ 两节晚修的收获', text: '你把错题本翻到最前面，一道一道重新过。下课铃响的时候，那几类题终于连成了一条线。', journal: '· 晚修：专心刷题' }) },
+  { label: '写一会作业就和同桌传纸条', fx: { social: 2, study: -3, sleep: -1 }, title: '✍️ 传纸条', text: '纸条在两张桌子之间来回折了七八次，作业只推进了两行。', journal: '· 晚修：传纸条' },
+  { label: '偷偷看课外书', fx: { social: 2, study: -1, sleep: -1 }, title: '✍️ 课桌下的课外书', text: '你把小说夹在课本里，一行一行往下看。老师的影子在窗上晃了两次，你都及时合上了。', journal: '· 晚修：看课外书' },
+  { label: '遇到难题发呆摆烂', fx: { study: -3, social: -2, sleep: -1 }, title: '✍️ 发呆摆烂', text: '你把笔转了三圈，然后什么也没写。窗外有虫子在叫。', journal: '· 晚修：发呆摆烂' },
+  { label: '整理今天的错题', fx: { study: 3, sleep: -1 }, title: '✍️ 整理错题', text: '你把今天所有做错的题抄进错题本，用红笔在旁边标了「易错」。写完的时候，晚修正好过半。', journal: '· 晚修：整理错题' },
+  { label: '把数学卷子后半部分做完', fx: { study: 3, sleep: -2 }, title: '✍️ 做完卷子', text: '你把早上没做完的卷子翻出来，硬是把最后一道大题啃了下来。中间卡了三次。', journal: '· 晚修：做完卷子' },
+  { label: '和同桌小声聊明天的事', fx: { social: 3, study: -2 }, title: '✍️ 悄悄聊天', text: '你们压低声音聊了很久，从明天午饭吃什么聊到暑假去哪。值班老师走过来的时候，你们都低头看卷子。', journal: '· 晚修：悄悄聊天' },
+  { label: '看一篇语文阅读', fx: { study: 1, sleep: 1 }, title: '✍️ 看阅读', text: '你把一篇散文读完，在旁边的空白处写了一小段感想。写完觉得还挺好，合上书，什么都没记住。', journal: '· 晚修：看阅读' },
+  { label: '背英语单词', fx: { study: 2, sleep: -2 }, title: '✍️ 背单词', text: '你从 aband 开始背，背到 abandon 的时候，正好想放弃。最后撑到了 C。', journal: '· 晚修：背单词' },
+  { label: '把明天的作业先做一半', fx: { study: 2, sleep: -1 }, title: '✍️ 提前做作业', text: '你把明天要交的数学和物理各做了一半。明天晚修的时候，你会轻松很多。', journal: '· 晚修：提前做作业' },
+];
+/* 课外活动池：25% 概率额外混入一个，覆盖运动 / 吃饭 / 艺术 / 社团 */
+const DAILY_ACTIVITY_POOL = [
+  // 运动
+  { label: '去操场跑两圈', fx: { sleep: 2, social: 1, study: -1 }, title: '🏃 操场跑圈', text: '你沿着跑道慢跑了两圈，操场上还有几个人在散步。风吹过来的时候，很舒服。', journal: '· 活动：操场跑圈' },
+  { label: '和同学打一场乒乓球', fx: { social: 3, sleep: -1 }, title: '🏓 打乒乓球', text: '你和球友打满 11 球，最后 12:10 险胜。两个人都出了一身汗。', journal: '· 活动：打乒乓球' },
+  { label: '去体育馆打羽毛球', fx: { social: 2, sleep: 1 }, title: '🏸 打羽毛球', text: '你抢到最后一个场地，打了半小时。中间有一次救球摔倒了，但球接住了。', journal: '· 活动：打羽毛球' },
+  { label: '打篮球', fx: { social: 3, sleep: 1 }, title: '🏀 打篮球', text: '你在半场投了几个球，手感一般。后来换了个人上来，你下场坐在旁边看。', journal: '· 活动：打篮球' },
+  { label: '沿着校园走一圈', fx: { sleep: 2, social: -1, study: 1 }, title: '🚶 校园散步', text: '你从教学楼走到操场，再从操场走到图书馆。走到一半，碰到了以前的初中同学。', journal: '· 活动：校园散步' },
+  // 吃饭
+  { label: '去小卖部买冰可乐', fx: { social: 1, sleep: 1 }, title: '🥤 冰可乐', text: '你买了一瓶冰可乐，站在树下喝完。上课铃响的时候，剩下的半瓶还拎在手里。', journal: '· 活动：冰可乐' },
+  { label: '去食堂二楼吃夜宵', fx: { social: 3, sleep: -1 }, title: '🍜 夜宵', text: '你和几个同学约在食堂二楼，一人点了一碗汤粉。吃完回宿舍，路上没什么人。', journal: '· 活动：夜宵' },
+  { label: '在小卖部买零食', fx: { sleep: 1, study: -1, social: 1 }, title: '🍪 买零食', text: '你买了一包薯片和一瓶牛奶，站在走廊上慢慢吃。', journal: '· 活动：买零食' },
+  { label: '去食堂打一份新出的菜', fx: { social: 2, study: -1 }, title: '🍲 试试新菜', text: '窗口新出了一个菜，你点了一份。味道一般，但比昨天的好。', journal: '· 活动：食堂新菜' },
+  // 艺术 / 社团
+  { label: '去音乐教室弹钢琴', fx: { sleep: 2, social: 1, study: -1 }, title: '🎹 弹钢琴', text: '音乐教室没人，你掀开琴盖弹了一会儿。手生了不少，但琴声在空旷的教室里很好听。', journal: '· 活动：弹钢琴' },
+  { label: '去美术教室画画', fx: { sleep: 2, study: -1, social: 1 }, title: '🎨 画画', text: '你在美术教室借了一支铅笔，画了半小时速写。画的是窗外的树。', journal: '· 活动：画画' },
+  { label: '去图书馆翻杂志', fx: { study: 1, sleep: 1, social: -1 }, title: '📖 翻杂志', text: '你在期刊架前站了很久，翻完了一本讲旅行的杂志。', journal: '· 活动：翻杂志' },
+  { label: '去社团活动室', fx: { social: 3, sleep: -1 }, title: '🎭 社团', text: '你去社团活动室坐了一会儿，和几个人聊了聊最近的社团活动。', journal: '· 活动：社团' },
+  { label: '去广播站', fx: { social: 3, study: 1, sleep: -2 }, title: '🎤 广播站', text: '你去广播站念了一段稿子。声音有点抖，但播完之后还挺好。', journal: '· 活动：广播站' },
+  // 学术
+  { label: '去办公室找老师问问题', fx: { study: 3, sleep: -2 }, title: '📚 办公室答疑', text: '你去办公室问了一道一直没想明白的题。老师讲完，你终于懂了。', journal: '· 活动：办公室答疑' },
+  { label: '去图书馆自习', fx: { study: 2, sleep: -1, social: -1 }, title: '📚 图书馆自习', text: '你在图书馆找了个靠窗的位置坐下来，安安静静写了两页作业。', journal: '· 活动：图书馆自习' },
+];
+
 const DAILY_SLOTS = [
   {
     key: 'morning',
@@ -2854,10 +2943,10 @@ function dailyUseLeavePass() {
 // 各时段的出现权重。morning/evening/night/weekend 是常规时段；
 // break/lunch/afternoon 权重压到 1/3，大约每 12 轮才出现一次。
 const DAILY_SLOT_WEIGHTS = {
-  morning: 3,
-  break: 1,
-  lunch: 1,
-  afternoon: 1,
+  morning: 2,
+  break: 2,
+  lunch: 2,
+  afternoon: 2,
   evening: 3,
   night: 3,
   weekend: 3,
@@ -2983,13 +3072,14 @@ function buildDailyEvent() {
   const slot = DAILY_SLOTS[dailySlotIndex()];
   advanceDailySlot();
   // 每个时段都从对应的池子里随机抽 4 个；morning / evening 用固定的 4 个选项
+
   let rawOptions;
   if (slot.key === 'break') rawOptions = shuffle(BREAK_OPTIONS).slice(0, 4);
   else if (slot.key === 'lunch') rawOptions = shuffle(LUNCH_OPTIONS).slice(0, 4);
   else if (slot.key === 'afternoon') rawOptions = shuffle(AFTERNOON_OPTIONS).slice(0, 4);
   else if (slot.key === 'night') rawOptions = shuffle(NIGHT_OPTIONS).slice(0, 4);
   else if (slot.key === 'weekend') rawOptions = shuffle(WEEKEND_OPTIONS).slice(0, 4);
-  else rawOptions = slot.options.slice(0, 4); // morning / evening
+  else rawOptions = slot.options.slice(0, 4);
 
   const options = rawOptions
     .filter((o) => !o.available || o.available())
@@ -3004,7 +3094,6 @@ function buildDailyEvent() {
     options,
   };
 }
-
 function buildDailyRandomEvent() {
   if (!S || !chance(DAILY_RANDOM_CHANCE)) return null;
   const raw = pick(DAILY_RANDOM_EVENTS);

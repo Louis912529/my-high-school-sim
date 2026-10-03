@@ -217,9 +217,9 @@ async function handleRequest(req, res) {
         name: String(b.name).slice(0, 16),
         score: b.score,
         ending: b.ending || '',
-        badge: b.badge || '',
+        //badge: b.badge || '',等supabase
         track: b.track || '',
-        report: b.report || '',
+        //report: b.report || '',等supabase
         ts: Date.now(),
       };
       const existing = await supabase(`leaderboard?id=eq.${encodeURIComponent(b.id)}&select=id`);

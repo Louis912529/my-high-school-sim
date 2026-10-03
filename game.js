@@ -66,7 +66,7 @@ const DIFFICULTY_PRESETS = Object.freeze({
     level: 1,
     label: '普通',
     short: '普通',
-    blurb: '考试每 5 轮一次，资源取舍偏紧。',
+    blurb: '默认难度。',
     examInterval: 5,          // 每 N 轮一次考试
     crisisRecovery: 6,        // 极低睡眠时的强制休整回补
     rankOffset: 8,            // 排名中心额外后移（同样学习属性名次更靠后）
@@ -79,7 +79,7 @@ const DIFFICULTY_PRESETS = Object.freeze({
     level: 2,
     label: '困难',
     short: '困难',
-    blurb: '考试每 4 轮一次，属性收益更低，休学更容易，恋爱推进更慢。',
+    blurb: '更高难度，属性收益较低。',
     examInterval: 4,
     crisisRecovery: 3,
     rankOffset: 22,

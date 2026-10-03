@@ -728,6 +728,13 @@ function startForcedLeave(months, triggerChance) {
 // 低于阈值不必每次必然休学，但睡眠越低，特殊情况越容易触发。
 function maybeTriggerSleepLeave() {
   if (S.sleep >= 50) return 0;
+
+  // 20 以下：强制休学，不再掷骰
+  if (S.sleep <= 30) {
+    S.lastLeaveChance = { months: 12, chance: 1, sleep: S.sleep };
+    return startForcedLeave(12, 1);
+  }
+
   if (S.sleep < 45) {
     const yearChance = sleepLeaveChance(S.sleep, 60, 0.06, 0.006);
     S.lastLeaveChance = { months: 12, chance: yearChance, sleep: S.sleep };
@@ -741,6 +748,7 @@ function maybeTriggerSleepLeave() {
 }
 
 function sleepRiskHint(sleep) {
+  if (sleep <= 30) return '低于 20：本轮必然强制休学 1 年';
   if (sleep < 50) return `低于 50：本轮强制休学 1 年概率约 ${chancePercent(sleepLeaveChance(sleep, 50, 0.14, 0.012))}%`;
   if (sleep < 60) return `低于 60：本轮强制休学 1 个月概率约 ${chancePercent(sleepLeaveChance(sleep, 60, 0.08, 0.006))}%`;
   return '';
@@ -1069,6 +1077,15 @@ $('#btn-sem-start').addEventListener('click', () => {
     journal('→ 在莞中的三年开始了');
     netBroadcast('开启在东莞中学的三年旅程', '🎒');
   }
+  // 开学前先走军训
+  if (!S.flags.militaryDone) {
+    const military = buildMilitaryEvent();
+    if (military) {
+      QUEUE = [military];
+      processQueue();
+      return;
+    }
+  }
   showMainChoices();
   // 新学期开场：滚到最底部，让玩家从新学期第一条开始读
   requestAnimationFrame(() => {
@@ -1153,6 +1170,7 @@ function newGame() {
       promotionChecked: false,
       pendingPromotion: null,
       artShowsSeen: [],
+      militaryDone: false,
       artFestivalSeen: [],
     },
     foods: [],
@@ -1532,6 +1550,59 @@ function loveRatio() {
 }
 
 /* ---------------- 事件队列 ---------------- */
+/* ---------------- 军训 · 开学前 ---------------- */
+function buildMilitaryEvent() {
+  if (!S || S.flags.militaryDone) return null;
+  return {
+    t: 'choice',
+    kicker: '☀️ 开学前 · 军训',
+    hint: '八月的操场，太阳很毒。',
+    moduleClass: 'event-choice-module',
+    intro: {
+      kind: 'event',
+      title: '☀️ 军训',
+      body: '八月下旬，你提前回到了学校。\n\n操场上站满了还没混熟的陌生面孔，迷彩服在太阳底下亮得刺眼。教官站在队伍前面，背挺得笔直。\n\n「立正！」\n\n第一天上午站军姿，站到一半，你的腿已经开始发抖了。',
+    },
+    options: [
+      {
+        label: '认真训练，站好每一个军姿',
+        fx: { sleep: -5, study: 1, social: 1 },
+        kind: 'good',
+        title: '☀️ 认真军训',
+        text: '你站得笔直，汗从额头流到下巴也一动不动。教官在你身边停了两秒，点了点头。\n\n七天后，你黑了两个色号，但第一次感觉到自己的腰杆挺直了一点。',
+        journal: '· 军训：认真训练',
+        onPick: () => { S.flags.militaryDone = true; },
+      },
+      {
+        label: '装肚子疼，请一天假',
+        fx: { sleep: 2, social: -2, study: -1 },
+        kind: 'bad',
+        title: '☀️ 请了一天假',
+        text: '你捂着肚子去找教官请假。教官盯了你三秒：「去吧。」\n\n你回宿舍睡了一下午。醒来的时候，宿舍里只有你一个人。那天傍晚集合，没人问你去了哪。',
+        journal: '· 军训：请假',
+        onPick: () => { S.flags.militaryDone = true; },
+      },
+      {
+        label: '趁休息时和隔壁排的同学搭话',
+        fx: { sleep: -3, social: 4 },
+        kind: 'event',
+        title: '☀️ 认识了新同学',
+        text: '休息哨一响，你走到隔壁排，找了个看起来还顺眼的人搭话。\n\n「你也在一班？」「嗯。」\n\n话不多，但军训结束那天，他给你递了一瓶水。',
+        journal: '· 军训：认识新同学',
+        onPick: () => { S.flags.militaryDone = true; },
+      },
+      {
+        label: '晚上躲在被子里和家里视频',
+        fx: { sleep: -2, social: 1, study: -1 },
+        kind: 'event',
+        title: '☀️ 晚上的视频通话',
+        text: '熄灯后你躲在被子里偷偷和家里视频。妈妈说「黑了」，「瘦了」，你笑了一下说「没有」。\n\n挂掉之后，宿舍里很安静，只有风扇的声音。',
+        journal: '· 军训：晚上视频',
+        onPick: () => { S.flags.militaryDone = true; },
+      },
+    ],
+  };
+}
 /* ---------------- 手机机制 · 每学年选一次 ---------------- */
 function buildPhoneChoiceEvent() {
   if (!S) return null;
@@ -3048,6 +3119,7 @@ function dailySlotIndex() {
   if (typeof S.phone !== 'boolean') S.phone = true;
   if (typeof S.flags.phoneChoiceSem !== 'number') S.flags.phoneChoiceSem = -1;
   if (typeof S.flags.promotionChecked !== 'boolean') S.flags.promotionChecked = false;
+  if (typeof S.flags.militaryDone !== 'boolean') S.flags.militaryDone = true;
   if (typeof S.flags.pendingPromotion !== 'string') S.flags.pendingPromotion = null;
   if (!S.flags.loveMilestones || typeof S.flags.loveMilestones !== 'object') S.flags.loveMilestones = {};
   return S.dailyIdx % DAILY_SLOTS.length;
@@ -5260,50 +5332,50 @@ function gaokaoBandForStudy(study) {
   }
   if (value < 60) {
     return {
-      id: 'middle', label: '年级中游', rangeLabel: '520～540 分',
-      low: 520, high: 540,
-      expected: Math.round(520 + (value - 50) * 2),
+      id: 'middle', label: '年级中游', rangeLabel: '520～545 分',
+      low: 520, high: 545,
+      expected: Math.round(520 + (value - 50) * 2.5),
     };
   }
   if (value < 70) {
     return {
-      id: 'upper-middle', label: '年级中上游', rangeLabel: '540～568 分',
-      low: 540, high: 568,
-      expected: Math.round(540 + (value - 60) * 2.8),
+      id: 'upper-middle', label: '年级中上游', rangeLabel: '545～575 分',
+      low: 545, high: 575,
+      expected: Math.round(545 + (value - 60) * 3),
     };
   }
   if (value < 80) {
     return {
-      id: 'up', label: '年级上游', rangeLabel: '568～590 分',
-      low: 568, high: 590,
-      expected: Math.round(568 + (value - 70) * 2.2),
+      id: 'up', label: '年级上游', rangeLabel: '575～600 分',
+      low: 575, high: 600,
+      expected: Math.round(575 + (value - 70) * 2.5),
     };
   }
-  if (value < 90) {
+  if (value < 88) {
     return {
-      id: 'top', label: '年级前列', rangeLabel: '590～640 分',
-      low: 590, high: 640,
-      expected: Math.round(590 + (value - 80) * 5),
+      id: 'top', label: '年级前列', rangeLabel: '600～635 分',
+      low: 600, high: 635,
+      expected: Math.round(600 + ((value - 80) / 8) * 35),
     };
   }
-  if (value < 95) {
+  if (value < 94) {
     return {
-      id: 'elite', label: '年级顶尖', rangeLabel: '640～660 分',
-      low: 640, high: 660,
-      expected: Math.round(640 + (value - 90) * 4),
+      id: 'elite', label: '年级顶尖', rangeLabel: '635～660 分',
+      low: 635, high: 660,
+      expected: Math.round(635 + ((value - 88) / 6) * 25),
     };
   }
   if (value < 98) {
     return {
       id: 'genius', label: '清北潜力', rangeLabel: '660～680 分',
       low: 660, high: 680,
-      expected: Math.round(660 + (value - 95) * (20 / 3)),
+      expected: Math.round(660 + ((value - 94) / 4) * 20),
     };
   }
   return {
     id: 'front', label: '清北层次', rangeLabel: '680～700 分',
     low: 680, high: 700,
-    expected: Math.round(680 + (value - 98) * 6.67),
+    expected: Math.round(680 + ((value - 98) / 2) * 20),
   };
 }
 
@@ -5554,6 +5626,50 @@ function loveEnding() {
   };
 }
 
+/* 把总分拆成六科：语数英（150×3）+ 首选（100）+ 再选×2（100×2） */
+function buildGaokaoReport(score) {
+  const basePct = score / 750;
+
+  // 语文：社交加成
+  const chinesePct = clamp(basePct + (S.social - 50) * 0.0012, 0.45, 1);
+  const chinese = Math.round(150 * chinesePct);
+
+  // 数学：纯学习
+  const mathPct = clamp(basePct + (S.study - 70) * 0.0015, 0.45, 1);
+  const math = Math.round(150 * mathPct);
+
+  // 英语：学习和社交混合
+  const englishPct = clamp(basePct + (S.study - 70) * 0.0008 + (S.social - 50) * 0.0008, 0.45, 1);
+  const english = Math.round(150 * englishPct);
+
+  // 首选科目（物理 / 历史）：纯学习
+  const primaryPct = clamp(basePct + (S.study - 70) * 0.0018, 0.45, 1);
+  const primary = Math.round(100 * primaryPct);
+
+  // 再选 1 / 再选 2：带一点随机
+  const extra1 = Math.round(100 * clamp(basePct + rnd(-2, 2) / 100, 0.45, 1));
+  const extra2 = Math.round(100 * clamp(basePct + rnd(-2, 2) / 100, 0.45, 1));
+
+  // 误差回补到数学，保证六科加起来等于总分
+  const actual = chinese + math + english + primary + extra1 + extra2;
+  const diff = score - actual;
+  const finalMath = math + diff;
+
+  const trackExtra = S.trackExtra || (S.track === '历史' ? ['政治', '地理'] : ['化学', '生物']);
+
+  return {
+    chinese,
+    math: finalMath,
+    english,
+    primaryName: S.track || '物理',
+    primary,
+    extra1Name: trackExtra[0] || '化学',
+    extra1,
+    extra2Name: trackExtra[1] || '生物',
+    extra2,
+    total: chinese + finalMath + english + primary + extra1 + extra2,
+  };
+}
 function computeScore() {
   const band = gaokaoBandForStudy(S.study);
   const lifestyleAdjustment = clamp(Math.round(
@@ -5580,6 +5696,7 @@ function computeScore() {
     competitionPenalty,
     finalScore,
   };
+  S.gaokao.report = buildGaokaoReport(S.gaokao.finalScore);
   return finalScore;
 }
 
@@ -5615,8 +5732,9 @@ function doEnding() {
     : '单身';
 
   $('#end-score').textContent = score;
+  const report = buildGaokaoReport(score);
   $('#end-academic').textContent = ac.title;
-  $('#end-academic-desc').textContent = `${gaokaoDateLabel()}，你走进考场。\n\n6 月 25 日，分数出来了。\n\n${ac.desc}\n\n...`;
+  $('#end-academic-desc').textContent = `${gaokaoDateLabel()}，你走进考场。\n\n6 月 25 日，分数出来了。\n\n${ac.desc}\n\n── 高考成绩单 ──\n语文 ${report.chinese} / 150\n数学 ${report.math} / 150\n英语 ${report.english} / 150\n${report.primaryName} ${report.primary} / 100\n${report.extra1Name} ${report.extra1} / 100\n${report.extra2Name} ${report.extra2} / 100\n总分 ${report.total} / 750`;
   $('#end-love-title').textContent = lv.title;
   $('#end-love-desc').textContent = lv.desc;
 
@@ -5987,6 +6105,36 @@ function closeModalBtn() {
   return `<button class="m-close" onclick="document.getElementById('modal-mask').classList.add('hidden')">关闭</button>`;
 }
 
+/* 解析 report 字符串 */
+function parseReport(str) {
+  if (!str) return null;
+  try { return JSON.parse(str); } catch (e) { return null; }
+}
+
+/* 新高考排序规则：总分 → 语文 → 外语 → 首选 → 再选最高 → 再选次高 */
+function compareGaokao(a, b) {
+  if (a.score !== b.score) return b.score - a.score;
+
+  const ra = parseReport(a.report) || {};
+  const rb = parseReport(b.report) || {};
+
+  // 语文
+  if ((ra.chinese || 0) !== (rb.chinese || 0)) return (rb.chinese || 0) - (ra.chinese || 0);
+  // 外语
+  if ((ra.english || 0) !== (rb.english || 0)) return (rb.english || 0) - (ra.english || 0);
+  // 首选
+  if ((ra.primary || 0) !== (rb.primary || 0)) return (rb.primary || 0) - (ra.primary || 0);
+  // 再选最高
+  const aMax = Math.max(ra.extra1 || 0, ra.extra2 || 0);
+  const bMax = Math.max(rb.extra1 || 0, rb.extra2 || 0);
+  if (aMax !== bMax) return bMax - aMax;
+  // 再选次高
+  const aMin = Math.min(ra.extra1 || 0, ra.extra2 || 0);
+  const bMin = Math.min(rb.extra1 || 0, rb.extra2 || 0);
+  return bMin - aMin;
+}
+
+/* 按 track 分组 + 计算并列位次 */
 async function showLeaderboard() {
   if (!NET.online) {
     openModal(`<h3>🏆 全校排行榜</h3>
@@ -5999,19 +6147,28 @@ async function showLeaderboard() {
   try {
     const r = await api('/api/leaderboard');
     const list = (r && r.board) || [];
+    const groups = groupAndRank(list);
     const myId = netPlayerId();
-    const rows = list.map((e, i) => {
-      const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`;
-      const mine = e.id === myId ? ' style="background:rgba(240,160,48,.14);border-radius:10px"' : '';
-      const sub = [e.ending, e.track].filter(Boolean).map(escapeHtml).join(' · ');
-      return `<div class="record-row"${mine}>
-        <span>${medal} ${escapeHtml(e.name)}<br><small style="color:#5a6a7a">${sub}</small></span>
-        <b style="color:#f0a030">${Number(e.score) || 0}</b>
-      </div>`;
-    }).join('');
+
+    function renderRows(arr) {
+      if (!arr.length) return '<p class="hint-line center">这一档还没有人上榜。</p>';
+      return arr.map((e) => {
+        const mine = e.id === myId ? ' style="background:rgba(240,160,48,.14);border-radius:10px"' : '';
+        const sub = [e.ending, e.badge].filter(Boolean).map(escapeHtml).join(' · ');
+        return `<div class="record-row"${mine}>
+          <span>#${e._rank} ${escapeHtml(e.name)}<br><small style="color:#5a6a7a">${sub}</small></span>
+          <b style="color:#f0a030">${Number(e.score) || 0}</b>
+        </div>`;
+      }).join('');
+    }
+
     openModal(`<h3>🏆 全校排行榜</h3>
       <p class="hint-line center">共 ${list.length} 条记录 · 在线 ${NET.count} 人</p>
-      ${rows || '<p class="hint-line center">还没有人上榜，等你第一个。</p>'}
+      <p class="label-green" style="margin-top:14px">物理类</p>
+      ${renderRows(groups['物理类'])}
+      <p class="label-green" style="margin-top:14px">历史类</p>
+      ${renderRows(groups['历史类'])}
+      ${groups['未分科'].length ? `<p class="label-green" style="margin-top:14px">未分科（旧存档）</p>${renderRows(groups['未分科'])}` : ''}
       ${closeModalBtn()}`);
   } catch (e) {
     openModal(`<h3>🏆 全校排行榜</h3>
@@ -6070,6 +6227,22 @@ function netBroadcast(text, icon) {
   }).catch(() => {});
 }
 
+/* 根据最终属性和结局生成一个「特色之星」称号 */
+function computeBadge() {
+  if (!S) return '';
+  const titles = [];
+  if (S.study >= 95) titles.push('卷王之星');
+  if (S.social >= 90) titles.push('社交之星');
+  if (S.sleep >= 90) titles.push('作息之星');
+  if (S.sleep <= 40) titles.push('熬夜之王');
+  if (S.study >= 85 && S.social >= 85 && S.sleep >= 85) titles.push('六边形之星');
+  if (S.love && S.love.active && S.love.peakAff >= 95) titles.push('恋爱之星');
+  if (S.flags.confessions >= 1 && S.flags.rejected >= 1) titles.push('情感坎坷之星');
+  if (S.flags.breakups >= 1) titles.push('分手大师');
+  if (S.totalLeaveMonths >= 12) titles.push('休学之王');
+  if (S.study >= 60 && S.startStudy <= 40 && S.study - S.startStudy >= 30) titles.push('黑马之星');
+  return titles.length ? titles[0] : '';
+}
 // 放榜：上传成绩换排名，并往全校动态播报一条。
 async function netPublishResult(score, acTitle) {
   const rankEl = $('#end-rank');
@@ -6086,6 +6259,7 @@ async function netPublishResult(score, acTitle) {
         name: (S && S.name) || '匿名',
         score,
         ending: acTitle,
+        badge: computeBadge(),
         track: (S && S.track) ? S.track + '类' : '',
         ts: Date.now(),
       }),

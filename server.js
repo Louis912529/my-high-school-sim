@@ -167,7 +167,7 @@ async function handleRequest(req, res) {
   // ---------- 全校动态（Supabase） ----------
   if (p === '/api/feed' && req.method === 'GET') {
     try {
-      const feed = await supabase('feed?select=*&order=ts.desc&limit=30');
+      const feed = await supabase('feed?select=*&order=ts.desc&limit=50');
       return json(res, 200, { ok: true, feed });
     } catch (e) {
       console.error('[feed GET]', e.message);
@@ -198,7 +198,7 @@ async function handleRequest(req, res) {
   // ---------- 全校排行榜（Supabase） ----------
   if (p === '/api/leaderboard' && req.method === 'GET') {
     try {
-      const board = await supabase('leaderboard?select=*&order=score.desc&limit=30');
+      const board = await supabase('leaderboard?select=*&order=score.desc&limit=50');
       if (board && board.length) return json(res, 200, { ok: true, board });
       return json(res, 200, { ok: true, board: SEED });
     } catch (e) {

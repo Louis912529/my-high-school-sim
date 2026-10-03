@@ -6299,9 +6299,9 @@ async function netPublishResult(score, acTitle) {
         name: (S && S.name) || '匿名',
         score,
         ending: acTitle,
-        badge: computeBadge(),
+        //badge: computeBadge(),//等supabase加上
         track: (S && S.track) ? S.track + '类' : '',
-        report: JSON.stringify(buildGaokaoReport(score)),
+        //report: JSON.stringify(buildGaokaoReport(score)),//等supabase加上
         ts: Date.now(),
       }),
     });

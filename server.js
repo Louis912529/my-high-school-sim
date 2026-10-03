@@ -194,6 +194,7 @@ async function handleRequest(req, res) {
       return json(res, 500, { ok: false });
     }
   }
+  
 
   // ---------- 全校排行榜（Supabase） ----------
   if (p === '/api/leaderboard' && req.method === 'GET') {
@@ -211,29 +212,26 @@ async function handleRequest(req, res) {
     const b = await readBody(req);
     if (!b.id || !b.name || typeof b.score !== 'number') return json(res, 400, { ok: false });
     try {
-      const existing = await supabase(`leaderboard?id=eq.${encodeURIComponent(b.id)}&select=*`);
+      const payload = {
+        id: b.id,
+        name: String(b.name).slice(0, 16),
+        score: b.score,
+        ending: b.ending || '',
+        badge: b.badge || '',
+        track: b.track || '',
+        report: b.report || '',
+        ts: Date.now(),
+      };
+      const existing = await supabase(`leaderboard?id=eq.${encodeURIComponent(b.id)}&select=id`);
       if (existing && existing.length) {
         await supabase(`leaderboard?id=eq.${encodeURIComponent(b.id)}`, {
           method: 'PATCH',
-          body: JSON.stringify({
-            score: b.score,
-            ending: b.ending || '',
-            track: b.track || '',
-            ts: Date.now(),
-            name: String(b.name).slice(0, 16),
-          }),
+          body: JSON.stringify(payload),
         });
       } else {
         await supabase('leaderboard', {
           method: 'POST',
-          body: JSON.stringify({
-            id: b.id,
-            name: String(b.name).slice(0, 16),
-            score: b.score,
-            ending: b.ending || '',
-            track: b.track || '',
-            ts: Date.now(),
-          }),
+          body: JSON.stringify(payload),
         });
       }
       const all = await supabase('leaderboard?select=id&order=score.desc');
@@ -244,6 +242,7 @@ async function handleRequest(req, res) {
       return json(res, 500, { ok: false });
     }
   }
+
 
   // ---------- 云存档（保留本地文件） ----------
   if (p === '/api/save' && req.method === 'POST') {

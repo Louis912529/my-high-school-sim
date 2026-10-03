@@ -1561,7 +1561,7 @@ function buildMilitaryEvent() {
     intro: {
       kind: 'event',
       title: '☀️ 军训',
-      body: '八月下旬，你提前回到了学校。\n\n操场上站满了还没混熟的陌生面孔，迷彩服在太阳底下亮得刺眼。教官站在队伍前面，背挺得笔直。\n\n「立正！」\n\n第一天上午站军姿，站到一半，你的腿已经开始发抖了。',
+      body: '八月下旬，你提前回到了学校。\n\n操场上站满了还没混熟的陌生面孔，校服在太阳底下亮得刺眼。教官站在队伍前面，背挺得笔直。\n\n「立正！」\n\n第一天上午站军姿，站到一半，你的腿已经开始发抖了。',
     },
     options: [
       {
@@ -1569,7 +1569,7 @@ function buildMilitaryEvent() {
         fx: { sleep: -5, study: 1, social: 1 },
         kind: 'good',
         title: '☀️ 认真军训',
-        text: '你站得笔直，汗从额头流到下巴也一动不动。教官在你身边停了两秒，点了点头。\n\n七天后，你黑了两个色号，但第一次感觉到自己的腰杆挺直了一点。',
+        text: '你站得笔直，汗从额头流到脖子，帽檐也被汗水浸透。教官在你身边停了两秒，点了点头。\n\n七天后，你黑了两个色号，但第一次感觉到自己的腰杆挺直了一点。',
         journal: '· 军训：认真训练',
         onPick: () => { S.flags.militaryDone = true; },
       },
@@ -6134,6 +6134,46 @@ function compareGaokao(a, b) {
   return bMin - aMin;
 }
 
+
+/* 按物理类 / 历史类 / 未分科分组，组内按新高考规则排序并计算并列位次 */
+function groupAndRank(list) {
+  const groups = { '物理类': [], '历史类': [], '未分科': [] };
+  list.forEach((e) => {
+    const track = e.track || '';
+    const key = track.includes('物理') ? '物理类' : track.includes('历史') ? '历史类' : '未分科';
+    groups[key].push({ ...e });
+  });
+
+  // 排序：总分 → 语文 → 外语 → 首选 → 再选最高 → 再选次高
+  const compare = (a, b) => {
+    if ((a.score || 0) !== (b.score || 0)) return (b.score || 0) - (a.score || 0);
+    const ra = a.report || {};
+    const rb = b.report || {};
+    if ((ra.chinese || 0) !== (rb.chinese || 0)) return (rb.chinese || 0) - (ra.chinese || 0);
+    if ((ra.english || 0) !== (rb.english || 0)) return (rb.english || 0) - (ra.english || 0);
+    if ((ra.primary || 0) !== (rb.primary || 0)) return (rb.primary || 0) - (ra.primary || 0);
+    const aMax = Math.max(ra.extra1 || 0, ra.extra2 || 0);
+    const bMax = Math.max(rb.extra1 || 0, rb.extra2 || 0);
+    if (aMax !== bMax) return bMax - aMax;
+    const aMin = Math.min(ra.extra1 || 0, ra.extra2 || 0);
+    const bMin = Math.min(rb.extra1 || 0, rb.extra2 || 0);
+    return bMin - aMin;
+  };
+
+  // 组内排序 + 计算并列位次（同分同位次，下一名次跳号）
+  Object.keys(groups).forEach((k) => {
+    const arr = groups[k].sort(compare);
+    let lastScore = null, lastRank = 0;
+    arr.forEach((e, idx) => {
+      if (e.score !== lastScore) {
+        lastRank = idx + 1;
+        lastScore = e.score;
+      }
+      e._rank = lastRank;
+    });
+  });
+  return groups;
+}
 /* 按 track 分组 + 计算并列位次 */
 async function showLeaderboard() {
   if (!NET.online) {
@@ -6261,6 +6301,7 @@ async function netPublishResult(score, acTitle) {
         ending: acTitle,
         badge: computeBadge(),
         track: (S && S.track) ? S.track + '类' : '',
+        report: JSON.stringify(buildGaokaoReport(score)),
         ts: Date.now(),
       }),
     });

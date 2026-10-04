@@ -29,8 +29,8 @@ function storeJson(key, fallback) {
 
 /* ---------------- 会话配置（开局选择） ---------------- */
 let CFG = {
-  mode: 'immersive',
-  rounds: 90,
+  mode: 'standard',
+  rounds: 60,
   gender: '男',
   talent: '学霸胚子',
   className: '镜堂班',

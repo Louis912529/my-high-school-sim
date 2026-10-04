@@ -6316,7 +6316,7 @@ async function showMessageWall() {
 async function showWriteMessage() {
   openModal(`<h3>✍️ 留下一句话</h3>
     <p class="hint-line center">不超过 20 字，会显示在留言墙上。</p>
-    <input id="msg-input" type="text" maxlength="20" placeholder="例：三年，值了。" style="width:100%;padding:12px;margin:12px 0;border:1.5px solid #c6bea6;border-radius:8px;background:#fffdf7;font-size:15px;">
+    <input id="msg-input" type="text" maxlength="20" placeholder="例：信莞中，定成功。" style="width:100%;padding:12px;margin:12px 0;border:1.5px solid #c6bea6;border-radius:8px;background:#fffdf7;font-size:15px;">
     <button class="m-close" id="msg-submit">提交留言</button>
     <button class="m-close" onclick="document.getElementById('modal-mask').classList.add('hidden')" style="background:#a18c67;margin-top:8px;">算了</button>`);
   setTimeout(() => {

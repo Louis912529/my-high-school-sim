@@ -1211,6 +1211,26 @@ function newGame() {
    填充轮 · 日常片段
    在主选择之间插入的"没有大选择"的日子。纯叙事，附带少量数值加成。
    ================================================================ */
+
+/* 班会课内容池：每次随机抽一条，一局内不重复 */
+const BANHUI_TOPICS = [
+  '班主任在班会课上说了三条通知：下周三体检、下下周月考、下个月黑板报评比。说完最后一句，教室里发出一阵小小的哀嚎。',
+  '这周的班会课，班主任让大家写「想对一年后的自己说的一句话」。写完之后，纸条被折起来放进一个纸盒，封好放在讲台下面的抽屉里。',
+  '班会课被临时改成了安全讲座。年级主任站上讲台讲了半小时防火防盗防诈骗，最后放了一段交通事故监控视频，班里安静了好一会儿。',
+  '班会课上，班主任让大家把这周的学习计划写在便利贴上，贴到教室后墙。整面墙很快就花花绿绿，像一张拼起来的愿望清单。',
+  '这周班会，班主任请来了一位刚毕业的学长分享经验。学长说了一句话：「高一别偷懒，高二别放松，高三别崩溃。」说完自己先笑了。',
+  '班会课上，班主任重新排了座位。你从靠窗的位置换到了中间，前后左右都是不太熟的人。第一节课上完，你还没分清谁叫什么名字。',
+  '这周班会，班主任公布了班级口号征集的结果。「不负韶华，一战成名」得票最高，但最后定下来的是一句很朴素的「踏实走好每一步」。',
+  '班会课最后十分钟，班主任让大家互相写小纸条，写「这周 TA 最让你感动的一件事」。你收到两张，一张写着「谢谢你借我橡皮」，一张没署名。',
+  '这周班会，班主任说了很多，最后一句是：「你们不用都成为第一名，但希望三年后你们都能对自己说一句『我尽力了』。」教室里没人说话，但有人低头写了点什么。',
+  '班会课上，班主任让每个人起来说一句「这周最开心的事」。轮到最后一排，有人说「食堂加了新菜」，全班都笑了。',
+  '班主任在班会上强调，下周开始严查晚修纪律。说完之后，班里几个人互相看了一眼，谁都没说话。',
+  '这周的班会课，来了几个高一新生参观。班主任让班长上台讲班级情况。班长平时话很多，站上台之后却卡壳了三次。',
+  '班会课上，班主任发了张表，让大家填「理想大学」和「理想专业」。你盯着空格看了很久，最后写了一个自己也没想好的答案。',
+  '班主任说这周班会的主题是「情绪管理」。讲完之后，让每个人写下最近最烦的一件事，揉成团，扔进垃圾桶。你写完之后，确实轻松了一点。',
+  '这周班会，班主任没讲任何通知。他只是让大家把桌子摆成一个圈，聊了一节课最近有什么想说的。下课铃响的时候，有人还在讲。',
+];
+
 const FILLER_SCENES = [
   {
     title: '📖 平常的两周',
@@ -1220,7 +1240,7 @@ const FILLER_SCENES = [
   {
     title: '🌧️ 连着下了几场雨',
     tag: '下雨',
-    body: '梅雨季来得比往年早。走廊上挂满了湿漉漉的校服，教室里有一种潮湿的粉笔灰味。\n\n没有人愿意去操场，下课都趴在桌上。',
+    body: '梅雨季来得比往年早。阳台上挂满了湿漉漉的校服，教室里有一种潮湿的粉笔灰味。\n\n没有人愿意去操场，下课都趴在桌上。',
   },
   {
     title: '🍂 换季了',
@@ -1228,9 +1248,16 @@ const FILLER_SCENES = [
     body: '一夜之间就凉了。早上出门没加外套，中午回来的时候鼻子是红的。\n\n新教学楼下的梧桐叶落了一地，扫了又落，落了又扫。',
   },
   {
-    title: '📺 班会通知',
-    tag: '班会通知',
-    body: '班主任在班会课上说了三条通知：下周体检、下下周月考、下下下周运动会报名。\n\n老班说完最后一句，教室里发出一阵小小的哀嚎。',
+    title: '📺 班会课',
+    tag: '班会课',
+    body: () => {
+      if (!S.flags.banhuiSeen || !Array.isArray(S.flags.banhuiSeen)) S.flags.banhuiSeen = [];
+      let pool = BANHUI_TOPICS.filter((t) => !S.flags.banhuiSeen.includes(t));
+      if (!pool.length) { S.flags.banhuiSeen = []; pool = BANHUI_TOPICS; }
+      const topic = pick(pool);
+      S.flags.banhuiSeen.push(topic);
+      return topic;
+    },
   },
   {
     title: '🧹 轮到你们值周',
@@ -2618,7 +2645,7 @@ const BREAK_OPTIONS = [
   { label: '和好友去操场走走', fx: { social: 2, sleep: -1 }, title: '📖 操场走一圈', text: '你们绕操场走了一圈，在小卖部买了两瓶饮料。回来的时候出了些汗，上课铃刚好响。', journal: '· 课间：操场走一圈' },
   { label: '跑去地下室打乒乓球', fx: { social: 1, sleep: -1 }, title: '📖 打乒乓球', text: '你在负1层找到球友，和他打了几局乒乓球，期间你一用力，把球打上了天花板的夹层里。', journal: '· 课间：跑去地下室打乒乓球' },
   { label: '在教室和同桌聊天打闹', fx: { social: 2, sleep: -1, study: -1 }, title: '📖 聊了一整节下课', text: '你们从月考聊到暑假，笑得前排都回头。十分钟过得比一节课还快。', journal: '· 课间：聊天打闹' },
-  { label: '去小卖部买冰可乐', fx: { social: 1, study: -1 }, title: '📖 小卖部', text: '你在小卖部买了一瓶冰可乐，站在树下喝完。上课铃响的时候，剩下的半瓶还没喝完，只能拎回教室。', journal: '· 课间：小卖部冰可乐' },
+  { label: '去小卖部买冰饮料', fx: { social: 1, study: -1 }, title: '📖 小卖部', text: '你在小卖部买了一瓶冰饮料，站在树下喝完。上课铃响的时候，剩下的半瓶还没喝完，只能拎回教室。', journal: '· 课间：小卖部冰饮料' },
   { label: '去走廊上和隔壁班的朋友打招呼', fx: { social: 3, study: -1 }, title: '📖 隔壁班串门', text: '你走到隔壁班门口，朋友正好出来。两个人靠着栏杆交换了几条不重要的消息，上课铃就响了。', journal: '· 课间：隔壁班串门' },
   { label: '去接杯热水，顺便看看走廊外的操场', fx: { sleep: 2, study: 1, social: 1 }, title: '📖 走廊接水', text: '你端着杯子走到饮水机前，热水器发出咕噜咕噜的声音。窗外操场上有人在上体育课。', journal: '· 课间：走廊接水' },
   { label: '把下节课要用的书提前翻一遍', fx: { study: 2, sleep: -2 }, title: '📖 提前预习', text: '你把下节课的内容扫了一遍，标出了两个看不懂的地方。上课的时候正好讲到。', journal: '· 课间：提前预习' },
@@ -2715,22 +2742,22 @@ const EVENING_OPTIONS = [
 /* 课外活动池：25% 概率额外混入一个，覆盖运动 / 吃饭 / 艺术 / 社团 */
 const DAILY_ACTIVITY_POOL = [
   // 运动
-  { label: '去操场跑两圈', fx: { sleep: 2, social: 1, study: -1 }, title: '🏃 操场跑圈', text: '你沿着跑道慢跑了两圈，操场上还有几个人在散步。风吹过来的时候，很舒服。', journal: '· 活动：操场跑圈' },
-  { label: '和同学打一场乒乓球', fx: { social: 3, sleep: -1 }, title: '🏓 打乒乓球', text: '你和球友打满 11 球，最后 12:10 险胜。两个人都出了一身汗。', journal: '· 活动：打乒乓球' },
-  { label: '去体育馆打羽毛球', fx: { social: 2, sleep: 1 }, title: '🏸 打羽毛球', text: '你抢到最后一个场地，打了半小时。中间有一次救球摔倒了，但球接住了。', journal: '· 活动：打羽毛球' },
-  { label: '打篮球', fx: { social: 3, sleep: 1 }, title: '🏀 打篮球', text: '你在半场投了几个球，手感一般。后来换了个人上来，你下场坐在旁边看。', journal: '· 活动：打篮球' },
-  { label: '沿着校园走一圈', fx: { sleep: 2, social: -1, study: 1 }, title: '🚶 校园散步', text: '你从教学楼走到操场，再从操场走到图书馆。走到一半，碰到了以前的初中同学。', journal: '· 活动：校园散步' },
+  { label: '去操场跑两圈', slots: ['morning','break','lunch','afternoon'], fx: { sleep: 2, social: 1, study: -1 }, title: '🏃 操场跑圈', text: '你沿着跑道慢跑了两圈，操场上还有几个人在散步。风吹过来的时候，很舒服。', journal: '· 活动：操场跑圈' },
+  { label: '和同学打一场乒乓球', slots: ['break','lunch','afternoon'], fx: { social: 3, sleep: -1 }, title: '🏓 打乒乓球', text: '你和球友打满 11 球，最后 12:10 险胜。两个人都出了一身汗。', journal: '· 活动：打乒乓球' },
+  { label: '去体育馆打羽毛球', slots: ['morning','break','lunch','afternoon'], fx: { social: 2, sleep: 1 }, title: '🏸 打羽毛球', text: '你抢到最后一个场地，打了半小时。中间有一次救球摔倒了，但球接住了。', journal: '· 活动：打羽毛球' },
+  { label: '打篮球', slots: ['morning','break','lunch','afternoon'], fx: { social: 3, sleep: 1 }, title: '🏀 打篮球', text: '你在半场投了几个球，手感一般。后来换了个人上来，你下场坐在旁边看。', journal: '· 活动：打篮球' },
+  { label: '沿着校园走一圈', slots: ['morning','break','lunch','afternoon'], fx: { sleep: 2, social: -1, study: 1 }, title: '🚶 校园散步', text: '你从教学楼走到操场，再从操场走到图书馆。走到一半，碰到了以前的初中同学。', journal: '· 活动：校园散步' },
   // 吃饭
-  { label: '去小卖部买冰可乐', fx: { social: 1, sleep: 1 }, title: '🥤 冰可乐', text: '你买了一瓶冰可乐，站在树下喝完。上课铃响的时候，剩下的半瓶还拎在手里。', journal: '· 活动：冰可乐' },
-  { label: '去食堂二楼吃夜宵', fx: { social: 3, sleep: -1 }, title: '🍜 夜宵', text: '你和几个同学约在食堂二楼，一人点了一碗汤粉。吃完回宿舍，路上没什么人。', journal: '· 活动：夜宵' },
-  { label: '在小卖部买零食', fx: { sleep: 1, study: -1, social: 1 }, title: '🍪 买零食', text: '你买了一包薯片和一瓶牛奶，站在走廊上慢慢吃。', journal: '· 活动：买零食' },
-  { label: '去食堂打一份新出的菜', fx: { social: 2, study: -1 }, title: '🍲 试试新菜', text: '窗口新出了一个菜，你点了一份。味道一般，但比昨天的好。', journal: '· 活动：食堂新菜' },
+  { label: '去小卖部买冰饮料', slots: ['break','lunch','afternoon','evening'], fx: { social: 1, sleep: 1 }, title: '🥤 冰饮料', text: '你买了一瓶冰饮料，站在树下喝完。上课铃响的时候，剩下的半瓶还拎在手里。', journal: '· 活动：冰饮料' },
+  { label: '去食堂二楼吃夜宵', slots: ['evening','night'], fx: { social: 3, sleep: -1 }, title: '🍜 夜宵', text: '你和几个同学约在食堂二楼，一人点了一碗汤粉。吃完回宿舍，路上没什么人。', journal: '· 活动：夜宵' },
+  { label: '在小卖部买零食', slots: ['break','lunch','afternoon','evening'], fx: { sleep: 1, study: -1, social: 1 }, title: '🍪 买零食', text: '你买了一包薯片和一瓶牛奶，站在走廊上慢慢吃。', journal: '· 活动：买零食' },
+  { label: '去食堂打一份新出的菜', slots: ['lunch','afternoon','evening'], fx: { social: 2, study: -1 }, title: '🍲 试试新菜', text: '窗口新出了一个菜，你点了一份。味道一般，但比昨天的好。', journal: '· 活动：食堂新菜' },
   // 艺术 / 社团
-  { label: '去音乐教室弹钢琴', fx: { sleep: 2, social: 1, study: -1 }, title: '🎹 弹钢琴', text: '音乐教室没人，你掀开琴盖弹了一会儿。手生了不少，但琴声在空旷的教室里很好听。', journal: '· 活动：弹钢琴' },
-  { label: '去美术教室画画', fx: { sleep: 2, study: -1, social: 1 }, title: '🎨 画画', text: '你在美术教室借了一支铅笔，画了半小时速写。画的是窗外的树。', journal: '· 活动：画画' },
-  { label: '去图书馆翻杂志', fx: { study: 1, sleep: 1, social: -1 }, title: '📖 翻杂志', text: '你在期刊架前站了很久，翻完了一本讲旅行的杂志。', journal: '· 活动：翻杂志' },
-  { label: '去社团活动室', fx: { social: 3, sleep: -1 }, title: '🎭 社团', text: '你去社团活动室坐了一会儿，和几个人聊了聊最近的社团活动。', journal: '· 活动：社团' },
-  { label: '去广播站', fx: { social: 3, study: 1, sleep: -2 }, title: '🎤 广播站', text: '你去广播站念了一段稿子。声音有点抖，但播完之后还挺好。', journal: '· 活动：广播站' },
+  { label: '去弹钢琴', slots: ['break','lunch','afternoon','evening'], fx: { sleep: 2, social: 1, study: -1 }, title: '🎹 弹钢琴', text: '音乐教室没人，你掀开琴盖弹了一会儿。手生了不少，但琴声在空旷的教室里很好听。', journal: '· 活动：弹钢琴' },
+  { label: '去美术教室画画', slots: ['break','lunch','afternoon'], fx: { sleep: 2, study: -1, social: 1 }, title: '🎨 画画', text: '你在美术教室借了一支铅笔，画了半小时速写。画的是窗外的树。', journal: '· 活动：画画' },
+  { label: '去图书馆翻杂志', slots: ['break','afternoon','evening'], fx: { study: 1, sleep: 1, social: -1 }, title: '📖 翻杂志', text: '你在期刊架前站了很久，翻完了一本讲旅行的杂志。', journal: '· 活动：翻杂志' },
+  { label: '去社团活动室', slots: ['break','lunch','afternoon'], fx: { social: 3, sleep: -1 }, title: '🎭 社团', text: '你去社团活动室坐了一会儿，和几个人聊了聊最近的社团活动。', journal: '· 活动：社团' },
+  { label: '去广播站', slots: ['break','lunch','afternoon'], fx: { social: 3, study: 1, sleep: -2 }, title: '🎤 广播站', text: '你去广播站念了一段稿子。声音有点抖，但播完之后还挺好。', journal: '· 活动：广播站' },
   // 学术
   { label: '去办公室找老师问问题', fx: { study: 3, sleep: -2 }, title: '📚 办公室答疑', text: '你去办公室问了一道一直没想明白的题。老师讲完，你终于懂了。', journal: '· 活动：办公室答疑' },
   { label: '去图书馆自习', fx: { study: 2, sleep: -1, social: -1 }, title: '📚 图书馆自习', text: '你在图书馆找了个靠窗的位置坐下来，安安静静写了两页作业。', journal: '· 活动：图书馆自习' },
@@ -2738,7 +2765,7 @@ const DAILY_ACTIVITY_POOL = [
   { label: '用教室电脑玩扫雷', fx: { sleep: 1, social: 1, study: -1 }, title: '💻 教室扫雷', text: '你趁老师不在打开了教室电脑，从开始菜单里翻出了扫雷。第一局三步就踩雷了，第二局撑到了 30 秒。', journal: '· 活动：教室电脑扫雷' },
   { label: '用教室电脑放电影', fx: { sleep: 1, social: 2, study: -2 }, title: '💻 教室电影', text: '几个同学把窗帘拉上，用投影放了一部老片子。看到一半有人推门，全班瞬间把屏幕切回 PPT。', journal: '· 活动：教室电脑放电影' },
   { label: '用教室电脑偷偷看小说', fx: { sleep: 1, social: -1, study: 1 }, title: '💻 教室看小说', text: '你在教室电脑上打开了一个在线阅读网站，边看边盯着门口。一章看完，才发现上课铃快响了。', journal: '· 活动：教室电脑看小说' },
-  { label: '用教室电脑查大学资料', fx: { study: 3, sleep: -1 }, title: '💻 查大学资料', text: '你在教室电脑上搜了几所目标大学的官网，把专业介绍一条一条抄进笔记本。查完之后，目标更具体了。', journal: '· 活动：查大学资料' },
+  { label: '用教室电脑查资料', fx: { study: 3, sleep: -1 }, title: '💻 查大学资料', text: '你在教室电脑上搜了几所目标大学的官网，把专业介绍一条一条抄进笔记本。查完之后，目标更具体了。', journal: '· 活动：查大学资料' },
   { label: '用教室电脑打 4399', fx: { social: 2, sleep: -1, study: -2 }, title: '💻 4399', text: '你和同桌在教室电脑上打开了一个老网站。玩了十分钟，被班主任从窗外看了一眼，赶紧切成课件。', journal: '· 活动：教室电脑 4399' },
 
   // ===== 出校玩 =====
@@ -2825,10 +2852,10 @@ const DAILY_SLOTS = [
           : { fx: { social: 2, sleep: -1 }, kind: 'daily', title: '📖 聊了一整节下课', text: '你们从月考聊到暑假，笑得前排都回头。十分钟过得比一节课还快。', journal: '· 课间：聊天打闹' }),
       },
       {
-        label: '去小卖部买冰可乐', fx: { social: 1, study: -1 },
+        label: '去小卖部买冰饮料', fx: { social: 1, study: -1 },
         title: '📖 小卖部',
-        text: '你在小卖部买了一瓶冰可乐，站在树下喝完。上课铃响的时候，剩下的半瓶还没喝完，只能拎回教室。',
-        journal: '· 课间：小卖部冰可乐',
+        text: '你在小卖部买了一瓶冰饮料，站在树下喝完。上课铃响的时候，剩下的半瓶还没喝完，只能拎回教室。',
+        journal: '· 课间：小卖部冰饮料',
       },
       {
         label: '去走廊上和隔壁班的朋友打招呼', fx: { social: 2, study: -1 },
@@ -3296,11 +3323,16 @@ function buildDailyEvent() {
   else rawOptions = slot.options.slice(0, 3);
 
   // 混入一个「课外活动」，凑成 4 个选项。
-  // 高一高二 35%，高三 55%（让高三的日常更丰富一些）。
+  // 只从适合当前时段的活动里抽，避免"晚修去打篮球"这种不合理的组合。
   const activityChance = S.semIdx >= 4 ? 0.55 : 0.35;
   if (chance(activityChance)) {
-    const activity = pick(DAILY_ACTIVITY_POOL);
-    rawOptions = [...rawOptions, activity];
+    const fitActivities = DAILY_ACTIVITY_POOL.filter(
+      (a) => !a.slots || a.slots.includes(slot.key)
+    );
+    if (fitActivities.length) {
+      const activity = pick(fitActivities);
+      rawOptions = [...rawOptions, activity];
+    }
   }
 
   const options = rawOptions
@@ -3917,7 +3949,7 @@ function loveEvent03() {
     intro: {
       kind: 'love',
       title: '🍚 食堂拼桌',
-      body: `食堂里空位不多。你端着餐盘在过道里慢慢走，眼睛扫过一排一排桌子。\n\n靠窗的角落，${ta}一个人坐着。对面的椅子空着，上面搭着一件校服外套。\n\nTA 正低头吃饭，没看到你。`,
+      body: `食堂里空位不多。你端着餐盘在过道里慢慢走，眼睛扫过一排一排桌子。\n\n柱子后的桌子，${ta}一个人坐着。旁边的椅子空着，上面放着一件校服外套。\n\nTA 正低头吃饭，没看到你。`,
     },
     options: [
       {
@@ -3927,7 +3959,7 @@ function loveEvent03() {
         title: '🍚 拼桌',
         text: lp({
           A: '「……没有。」TA 把椅子上的外套收起来，动作有点急。\n\n坐下之后两个人都没说话。但是你听见 TA 的筷子碰碗的声音轻了。',
-          B: '「没人没人，坐！」TA 顺手把对面的碗挪开，还把自己餐盘里的炸鸡夹了一块放你碗里。\n\n「这个好吃，尝尝。」',
+          B: '「没人没人，坐！」TA 顺手把椅子上的校服拿开，还把自己餐盘里的炸鸡夹了一块放你碗里。\n\n「这个好吃，尝尝。」',
           C: '「没有。」TA 把餐盘往自己那边收了收，给你让出位置。\n\n整顿饭 TA 都没怎么抬过头，但你注意到 TA 吃饭的速度比平时慢。',
           D: '「你坐哪不行啊。」TA 说着，还是把外套拿走了。\n\n坐下以后 TA 又嘟囔了一句：「……那儿不干净。」',
         }),
@@ -4058,27 +4090,27 @@ function loveEvent07() {
   };
 }
 
-// 08 · 文化节的后夜（④→⑤ 前置）
+// 08 · 艺术节闭幕之后（④→⑤ 前置）
 function loveEvent08() {
   const ta = loveTa();
   return {
     t: 'choice',
     intro: {
       kind: 'love',
-      title: '🎪 文化节的后夜',
-      body: `舞台的灯灭了，人群散了。操场上只剩下零零散散的人影和没收拾完的灯串。\n\n你回头，发现${ta}还站在那里。\n\n${ta}：「……今天的节目，你看了吗？」`,
+      title: '🎪 艺术节闭幕之后',
+      body: `艺术节的最后一天，舞台上的灯一盏一盏灭了。操场上的摊位收得差不多了，地上还散落着几张彩纸和没收拾完的丝带。\n\n人群散尽，你回头，发现${ta}还站在原来那个位置。\n\n${ta}：「……今天的节目，你看了吗？」`,
     },
     options: [
-      { label: '「看了。我一直看着你。」', fx: { aff: 10, social: 3, sleep: -1 }, kind: 'love', title: '🎪 后夜祭',
+      { label: '「看了。我一直看着你。」', fx: { aff: 10, social: 3, sleep: -1 }, kind: 'love', title: '🎪 散场之后',
         text: lp({ A: '「……你这个人，说话能不能别这样。」TA 转过身，背对着你站了很久。', B: '「诶？！你、你说什么？」TA 的声音一下就抖了。', C: '「……我听见了。」TA 没有回头，但也没有走。', D: '「……你、你有病吧。」TA 耳朵红得能滴血。' }),
-        journal: '· 文化节后夜',
-        onPick: () => { S.flags.loveMilestones['后夜祭'] = true; } },
+        journal: '· 艺术节散场',
+        onPick: () => { S.flags.loveMilestones['散场之后'] = true; } },
       { label: '「人太多了，什么都没看清。」', fx: { aff: 3 }, kind: 'love', title: '🎪 没看清',
         text: `${ta}：「……是啊，人太多了。」`,
-        journal: '· 后夜：没看清' },
+        journal: '· 散场：没看清' },
       { label: '「你怎么还没走？」', fx: { aff: 1 }, kind: 'love', title: '🎪 问了一句',
         text: `${ta}：「马上就走。」`,
-        journal: '· 后夜：问了一句' },
+        journal: '· 散场：问了一句' },
     ],
     onResolve: () => { S.love.seen.e08 = true; },
   };
@@ -4798,7 +4830,7 @@ function loveMilestone100() {
     },
     {
       title: '🎓 说过的话',
-      body: `操场的灯熄了一半，远处宿舍楼的窗还亮着几盏。\n\n${lp({
+      body: `操场的灯熄了一半，远处教室的窗还亮着几盏。\n\n${lp({
         A: '「……以后，我们还会像现在这样吗。」TA 问得很轻。',
         B: '「你说，去了大学以后，我们还会不会见面啊？」',
         C: '「……我在想一件事。」',
@@ -4864,7 +4896,8 @@ function buildLoveMilestoneEvent() {
   if (L.aff >= 30 && !ms['ms30']) return loveMilestone30();
   if (L.aff >= 50 && !ms['ms50']) return loveMilestone50();
   if (L.aff >= 80 && !ms['ms80']) return loveMilestone80();
-  if (L.confessed && L.aff >= 100 && !ms['ms100']) return loveMilestone100();
+  // ms100 是毕业前的对话，必须等高三下学期（semIdx === 5）才触发
+  if (L.confessed && L.aff >= 100 && S.semIdx === 5 && !ms['ms100']) return loveMilestone100();
   return null;
 }
 
@@ -5489,7 +5522,7 @@ function finishRound() {
     const scene = pick(FILLER_SCENES);
     const growth = { sleep: 1, social: 1, study: 1 };
     applyFx(growth);
-    logEvent('daily', scene.title, scene.body, growth);
+    logEvent('daily', scene.title, typeof scene.body === 'function' ? scene.body() : scene.body, growth);
     journal(`· ${scene.tag}`);
     buildEventQueue();
     processQueue();
@@ -5808,7 +5841,7 @@ const DEX_ITEMS_HEAD = [
 const DEX_LOVE_GIRL = [
   { k: '初次心动', n: '好感首次达到 46' },
   { k: '伞下的距离', n: '完成雨天共伞事件' },
-  { k: '后夜祭', n: '完成文化节后夜事件' },
+  { k: '散场之后', n: '艺术节闭幕之后，和 TA 留到最后' },
   { k: '两颗扣子', n: '达成恋人并走到毕业' },
   { k: '无言的夏天', n: '好感曾达 85 以上但最终未告白' },
 ];
@@ -5975,6 +6008,11 @@ function tryRestore() {
     if (!Array.isArray(S.flags.christmasSems)) S.flags.christmasSems = [];
     if (!Array.isArray(S.flags.bdaySems)) S.flags.bdaySems = [];
     if (!S.flags.loveMilestones || typeof S.flags.loveMilestones !== 'object') S.flags.loveMilestones = {};
+    // 兼容旧存档：把「后夜祭」迁移到「散场之后」
+    if (S.flags.loveMilestones['后夜祭'] && !S.flags.loveMilestones['散场之后']) {
+      S.flags.loveMilestones['散场之后'] = true;
+      delete S.flags.loveMilestones['后夜祭'];
+    }
     // 日常选项：旧存档没有这两个字段，补默认值。
     if (!S.flags.dailyMilestones || typeof S.flags.dailyMilestones !== 'object') S.flags.dailyMilestones = {};
     if (typeof S.flags.schoolLore !== 'number') S.flags.schoolLore = 0;
@@ -6245,6 +6283,75 @@ async function showFeed() {
   }
 }
 
+/* ---------------- 留言墙 ---------------- */
+async function showMessageWall() {
+  openModal(`<h3>💬 留言墙</h3><p class="hint-line center">加载中…</p>`);
+  try {
+    const r = await api('/api/message');
+    const list = (r && r.messages) || [];
+    if (!list.length) {
+      openModal(`<h3>💬 留言墙</h3>
+        <p class="hint-line center">还没有人留言。打完一局，写下你的第一句话。</p>
+        ${closeModalBtn()}`);
+      return;
+    }
+    const rows = list.map((m) => `
+      <div class="record-row">
+        <span><b style="color:#7b6410">${escapeHtml(m.name)}</b>
+          ${m.score != null ? `<small style="color:#a18c67"> · 高考 ${m.score} 分</small>` : ''}
+          <br><small style="color:#5a6a7a">${escapeHtml(m.text)}</small></span>
+        <b style="color:#5a6a7a;font-weight:400">${timeAgo(m.ts)}</b>
+      </div>`).join('');
+    openModal(`<h3>💬 留言墙</h3>
+      <p class="hint-line center">最近 ${list.length} 条（最多保留最近 100 条）</p>
+      ${rows}
+      ${closeModalBtn()}`);
+  } catch (e) {
+    openModal(`<h3>💬 留言墙</h3>
+      <p class="hint-line center">加载失败，稍后再试。</p>
+      ${closeModalBtn()}`);
+  }
+}
+
+async function showWriteMessage() {
+  openModal(`<h3>✍️ 留下一句话</h3>
+    <p class="hint-line center">不超过 20 字，会显示在留言墙上。</p>
+    <input id="msg-input" type="text" maxlength="20" placeholder="例：三年，值了。" style="width:100%;padding:12px;margin:12px 0;border:1.5px solid #c6bea6;border-radius:8px;background:#fffdf7;font-size:15px;">
+    <button class="m-close" id="msg-submit">提交留言</button>
+    <button class="m-close" onclick="document.getElementById('modal-mask').classList.add('hidden')" style="background:#a18c67;margin-top:8px;">算了</button>`);
+  setTimeout(() => {
+    const el = document.getElementById('msg-input');
+    if (el) el.focus();
+  }, 50);
+  document.getElementById('msg-submit').onclick = async () => {
+    const el = document.getElementById('msg-input');
+    const text = (el && el.value || '').trim();
+    if (!text) { alert('还没有写呢。'); return; }
+    try {
+      const r = await api('/api/message', {
+        method: 'POST',
+        body: JSON.stringify({
+          pid: netPlayerId(),
+          name: (S && S.name) || CFG.name || '匿名',
+          text: text.slice(0, 20),
+          score: (S && S.gaokao && S.gaokao.finalScore) || null,
+        }),
+      });
+      if (r && r.ok) {
+        openModal(`<h3>💬 留言成功</h3>
+          <p class="hint-line center">「${escapeHtml(text)}」已经贴在留言墙上了。</p>
+          ${closeModalBtn()}`);
+      } else if (r && r.reason === 'too_fast') {
+        alert('刚发过一条，等一会儿再发吧。');
+      } else {
+        alert('提交失败，稍后再试。');
+      }
+    } catch (e) {
+      alert('提交失败（网络问题）。');
+    }
+  };
+}
+
 function timeAgo(ts) {
   if (!ts) return '';
   const d = Date.now() - ts;
@@ -6315,6 +6422,9 @@ async function netPublishResult(score, acTitle) {
 // 用 if 兜一层：任何元素缺失都不该把后面的脚本（含 boot）带崩。
 $$('#btn-leaderboard, #btn-game-leaderboard').forEach((btn) => { btn.onclick = showLeaderboard; });
 $$('#btn-feed, #btn-game-feed').forEach((btn) => { btn.onclick = showFeed; });
+
+$('#btn-message-wall').onclick = showMessageWall;
+$('#btn-write-message').onclick = showWriteMessage;
 
 /* ---------------- 启动 ---------------- */
 (function boot() {

@@ -40,6 +40,7 @@ async function supabase(path, opts = {}) {
 const FILES = {
   saves: path.join(DATA_DIR, 'saves.json'),
   online: path.join(DATA_DIR, 'online.json'),
+  messages: path.join(DATA_DIR, 'messages.json'),
 };
 const OBJECT_FILES = new Set(['saves', 'online']);
 for (const k of Object.keys(FILES)) {
@@ -195,7 +196,33 @@ async function handleRequest(req, res) {
     }
   }
   
+  // ---------- 留言墙（Railway 本地文件） ----------
+  if (p === '/api/message' && req.method === 'GET') {
+    const messages = readJSON(FILES.messages, []);
+    return json(res, 200, { ok: true, messages: messages.slice(-100).reverse() });
+  }
 
+  if (p === '/api/message' && req.method === 'POST') {
+    const b = await readBody(req);
+    if (!b.name || !b.text) return json(res, 400, { ok: false });
+    const messages = readJSON(FILES.messages, []);
+    // 简单频控：同一玩家 60 秒只能发一条
+    const last = messages.filter((m) => m.pid === b.pid).pop();
+    if (last && Date.now() - last.ts < 60 * 1000) {
+      return json(res, 200, { ok: false, reason: 'too_fast' });
+    }
+    messages.push({
+      pid: String(b.pid || '').slice(0, 32),
+      name: String(b.name).slice(0, 16),
+      text: String(b.text).slice(0, 20),
+      score: typeof b.score === 'number' ? b.score : null,
+      ts: Date.now(),
+    });
+    writeJSON(FILES.messages, messages.slice(-500));
+    return json(res, 200, { ok: true });
+  }
+
+  
   // ---------- 全校排行榜（Supabase） ----------
   if (p === '/api/leaderboard' && req.method === 'GET') {
     try {
